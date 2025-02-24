@@ -7,9 +7,9 @@
 
 typedef struct {
     int M, N, NZ;
-    int *I;
-    int *J;
-    double *val;
+    int *I; //Row Index
+    int *J; //Column Index
+    double *val; //Value of element Matrix(i,j)
 }MatrixData;
 
 typedef struct{

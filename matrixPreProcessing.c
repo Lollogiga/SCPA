@@ -76,4 +76,27 @@ CSRMatrix convert_to_CSR(MatrixData data) {
     A.IRP = (int *) calloc(A.M + 1, sizeof(int));
     A.JA  = (int *) malloc(A.NZ * sizeof(int));
     A.AS  = (double *) malloc(A.NZ * sizeof(double));
+
+    //Count NZ for each row:
+    for (int i=0; i<data.NZ; i++) {
+        A.IRP[data.I[i] + 1]++;
+    }
+
+    //Calcutate IRP: A.IRP[i] = A.IRP[i-1] + #NZ_at_i-1:
+    for (int i=1; i<A.M; i++) {
+        A.IRP[i] += A.IRP[i-1];
+    }
+
+    // 4. Inserimento degli elementi in JA e AS
+    int *row_offset = calloc(A.M, sizeof(int));
+    for (int i = 0; i < data.NZ; i++) {
+        int row = data.I[i];
+        int pos = A.IRP[row] + row_offset[row];
+        A.JA[pos] = data.J[i];
+        A.AS[pos] = data.val[i];
+        row_offset[row]++;
+    }
+    free(row_offset);
+
+    return A;
 }
