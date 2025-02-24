@@ -33,21 +33,45 @@ MatrixData read_matrix(FILE * f) {
     if ((mm_read_mtx_crd_size(f, &data.M, &data.N, &data.NZ)) !=0)
         exit(1);
 
-    data.I = (int *) malloc(data.NZ * sizeof(int));
-    data.J = (int *) malloc(data.NZ * sizeof(int));
-    data.val = (double *) malloc(data.NZ * sizeof(double));
+    //Check if matrix is symmetric:
+    int sym = mm_is_symmetric(matcode);
+    printf("Matrix is symmetric?: %d\n", sym);
+    int nz_alloc = sym ? 2 * data.NZ : data.NZ; //If matrix is sym, the value of Nz is at most double
+
+    data.I = (int *) malloc(nz_alloc * sizeof(int));
+    data.J = (int *) malloc(nz_alloc * sizeof(int));
+    data.val = (double *) malloc(nz_alloc * sizeof(double));
 
 
     /* NOTE: when reading in doubles, ANSI C requires the use of the "l"  */
     /*   specifier as in "%lg", "%lf", "%le", otherwise errors will occur */
     /*  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            */
 
+    int index = 0;
     for (i=0; i<data.NZ; i++)
     {
-        fscanf(f, "%d %d %lg\n", &data.I[i], &data.J[i], &data.val[i]);
-        data.I[i]--;  /* adjust from 1-based to 0-based */
-        data.J[i]--;
+        int row, col;
+        double val;
+        fscanf(f, "%d %d %lg\n", &row, &col, &val);
+        row--;  /* adjust from 1-based to 0-based */
+        col--;  /* adjust from 1-based to 0-based */
+
+        data.I[index] = row;
+        data.J[index] = col;
+        data.val[index] = val;
+
+        index++;
+
+        //If the matrix is symmetric, and we aren't on diagonal:
+        if (sym && data.I[index] != data.J[index]) {
+            data.I[index] = col;
+            data.J[index] = row;
+            data.val[index] = val;
+
+            index++;
+        }
     }
+    data.NZ = index; //Update the effective number of NZ
     if (f !=stdin) fclose(f);
 
     return data;
@@ -83,7 +107,7 @@ CSRMatrix convert_to_CSR(MatrixData data) {
     }
 
     //Calcutate IRP: A.IRP[i] = A.IRP[i-1] + #NZ_at_i-1:
-    for (int i=1; i<A.M; i++) {
+    for (int i=1; i<= A.M; i++) {
         A.IRP[i] += A.IRP[i-1];
     }
 
@@ -96,11 +120,12 @@ CSRMatrix convert_to_CSR(MatrixData data) {
         A.AS[pos] = data.val[i];
         row_offset[row]++;
     }
-    free(row_offset);
+    //free(row_offset);
 
     return A;
 }
 
+//TODO check
 ELLPACKMatrix convert_to_ELLPACK(MatrixData data) {
     ELLPACKMatrix A;
 

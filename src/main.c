@@ -17,8 +17,10 @@ int main(void) {
     //Read matrix and save into CSR rappresentation
     MatrixData data = read_matrix(f);
 
+
     //Convert in CSR format:
     CSRMatrix A = convert_to_CSR(data);
+
 
     ELLPACKMatrix E = convert_to_ELLPACK(data);
 
@@ -36,8 +38,8 @@ int main(void) {
     free(A.JA);
     free(A.AS);
 
-    free(E.JA);
-    free(E.AS);
+    free(*E.JA);
+    free(*E.AS);
 
     return 0;
 }
