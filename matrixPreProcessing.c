@@ -100,3 +100,51 @@ CSRMatrix convert_to_CSR(MatrixData data) {
 
     return A;
 }
+
+ELLPACKMatrix convert_to_ELLPACK(MatrixData data) {
+    ELLPACKMatrix A;
+
+    //1. Calculate #NZ for each rows
+    int *row_counts = (int *) calloc(data.M, sizeof(int));
+    for (int i=0; i<data.NZ; i++) {
+        row_counts[data.I[i]]++;
+    }
+
+    //2. Search for max:
+    int maxnz = 0;
+    for (int i=0; i<data.M; i++) {
+        if (row_counts[i] > maxnz) {
+            maxnz = row_counts[i];
+        }
+    }
+
+    //3.Fill ELLPACK struct
+    A.M = data.M;
+    A.N = data.N;
+    A.MAXNZ = maxnz;
+    A.JA = (int *) malloc(data.M * sizeof(int));
+    A.AS = (double *) malloc(data.M * sizeof(double));
+    for (int i=0; i<data.M; i++) {
+        A.JA[i] = (int *) malloc(maxnz * sizeof(int));
+        A.AS[i] = (double *) malloc(maxnz * sizeof(double));
+        //Init matrix
+        for (int j=0; j<maxnz; j++) {
+            A.JA[i][j] = 0;
+            A.AS[i][j] = 0;
+        }
+    }
+
+    int *row_offset = (int *) calloc(data.M, sizeof(int));
+
+    for (int i = 0; i < data.NZ; i++) {
+        int row = data.I[i];
+        int pos = row_offset[row];  // Posizione corrente nella riga "row"
+        A.JA[row][pos] = data.J[i];
+        A.AS[row][pos] = data.val[i];
+        row_offset[row]++;
+    }
+
+    //free(row_counts);
+    //free(row_offset);
+    return A;
+}

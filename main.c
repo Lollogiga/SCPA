@@ -19,4 +19,24 @@ int main(void) {
     //Convert in CSR format:
     CSRMatrix A = convert_to_CSR(data);
 
+    ELLPACKMatrix E = convert_to_ELLPACK(data);
+
+    for (int i =0; i < E.N; i++) {
+        for (int j = 0; j < E.MAXNZ; j++) {
+            printf("JA[%d][%d] = %f\n", i, j, E.AS[i][j]);
+        }
+    }
+    //Free memory:
+    free(data.val);
+    free(data.I);
+    free(data.J);
+
+    free(A.IRP);
+    free(A.JA);
+    free(A.AS);
+
+    free(E.JA);
+    free(E.AS);
+
+    return 0;
 }

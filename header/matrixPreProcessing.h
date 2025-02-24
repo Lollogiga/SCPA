@@ -19,6 +19,14 @@ typedef struct{
     double *AS; //Valori
 }CSRMatrix;
 
+typedef struct {
+    int M, N;
+    int MAXNZ; //Numero massimo di non-zero per riga
+    int **JA;   //2D Array di indici di colonna
+    double **AS; //2D Array di coefficienti
+}ELLPACKMatrix;
+
 MatrixData read_matrix(FILE *f);
 CSRMatrix convert_to_CSR(MatrixData matrix);
+ELLPACKMatrix convert_to_ELLPACK(MatrixData matrix);
 #endif //MATRIXPREPROCESSING_H
