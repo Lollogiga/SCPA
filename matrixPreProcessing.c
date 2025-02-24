@@ -45,7 +45,6 @@ MatrixData read_matrix(FILE * f) {
     for (i=0; i<data.NZ; i++)
     {
         fscanf(f, "%d %d %lg\n", &data.I[i], &data.J[i], &data.val[i]);
-        printf("%d %d %lg\n", data.I[i], data.J[i], data.val[i]);
         data.I[i]--;  /* adjust from 1-based to 0-based */
         data.J[i]--;
     }
