@@ -40,8 +40,8 @@ int main(void) {
     free(csrMatrix.JA);
     free(csrMatrix.AS);
 
-    free(ellpackMatrix.JA);
-    free(ellpackMatrix.AS);
+    free(*ellpackMatrix.JA);
+    free(*ellpackMatrix.AS);
 
     return 0;
 }
