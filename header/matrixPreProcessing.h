@@ -7,24 +7,24 @@
 
 typedef struct {
     int M, N, NZ;
-    int *I; //Row Index
-    int *J; //Column Index
-    double *val; //Value of element Matrix(i,j)
-}MatrixData;
+    int *I;         //Row Index
+    int *J;         //Column Index
+    double *val;    //Value of element Matrix(i,j)
+} MatrixData;
 
-typedef struct{
+typedef struct {
     int M, N, NZ;
-    int *IRP; //Puntatore a inizio riga
-    int *JA; //Indici di colonna
-    double *AS; //Valori
-}CSRMatrix;
+    int *IRP;       //Puntatore a inizio riga
+    int *JA;        //Indici di colonna
+    double *AS;     //Valori
+} CSRMatrix;
 
 typedef struct {
     int M, N;
-    int MAXNZ; //Numero massimo di non-zero per riga
-    int **JA;   //2D Array di indici di colonna
-    double **AS; //2D Array di coefficienti
-}ELLPACKMatrix;
+    int MAXNZ;      //Numero massimo di non-zero per riga
+    int **JA;       //2D Array di indici di colonna
+    double **AS;    //2D Array di coefficienti
+} ELLPACKMatrix;
 
 MatrixData read_matrix(FILE *f);
 CSRMatrix convert_to_CSR(MatrixData matrix);

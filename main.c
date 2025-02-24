@@ -9,10 +9,11 @@ int main(void) {
     //Open Matrix Market file
     //TODO: Gestire l'apertura di diversi file
 
-    if ((f = fopen("../matrix/mhda41.mtx", "r")) == NULL) {
+    if ((f = fopen("../matrix/example.mtx", "r")) == NULL) {
         perror("Error opening file\n");
         exit(-1);
     }
+
     //Read matrix and save into CSR rappresentation
     MatrixData data = read_matrix(f);
 
