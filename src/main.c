@@ -14,32 +14,34 @@ int main(void) {
         exit(-1);
     }
 
-    //Read matrix and save into CSR rappresentation
-    MatrixData data = read_matrix(f);
-
+    // Read file and save matrix into MatrixMarket format
+    MatrixData rawMatrixData  = read_matrix(f);
+    if (rawMatrixData .val == NULL) {
+        perror("Error reading matrix data\n");
+        exit(-1);
+    }
 
     //Convert in CSR format:
-    CSRMatrix A = convert_to_CSR(data);
+    CSRMatrix csrMatrix = convert_to_CSR(rawMatrixData );
 
+    ELLPACKMatrix ellpackMatrix = convert_to_ELLPACK(rawMatrixData );
 
-    ELLPACKMatrix E = convert_to_ELLPACK(data);
-
-    for (int i =0; i < E.N; i++) {
-        for (int j = 0; j < E.MAXNZ; j++) {
-            printf("JA[%d][%d] = %f\n", i, j, E.AS[i][j]);
+    for (int i =0; i < ellpackMatrix.N; i++) {
+        for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
+            printf("JA[%d][%d] = %f\n", i, j, ellpackMatrix.AS[i][j]);
         }
     }
     //Free memory:
-    free(data.val);
-    free(data.I);
-    free(data.J);
+    free(rawMatrixData.val);
+    free(rawMatrixData.I);
+    free(rawMatrixData.J);
 
-    free(A.IRP);
-    free(A.JA);
-    free(A.AS);
+    free(csrMatrix.IRP);
+    free(csrMatrix.JA);
+    free(csrMatrix.AS);
 
-    free(*E.JA);
-    free(*E.AS);
+    free(ellpackMatrix.JA);
+    free(ellpackMatrix.AS);
 
     return 0;
 }
