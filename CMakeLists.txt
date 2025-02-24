@@ -3,8 +3,12 @@ project(SCPA C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(SCPA main.c
-        mmio.c
-        header/mmio.h
-        matrixPreProcessing.c
-        header/matrixPreProcessing.h)
+add_executable(
+        SCPA src/main.c
+
+            src/preprocessing/matrixPreProcessing.c
+            src/include/matrixPreProcessing.h
+
+            src/preprocessing/mmio.c
+            src/include/mmio.h
+)

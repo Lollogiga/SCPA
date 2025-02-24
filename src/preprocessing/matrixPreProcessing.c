@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "header/mmio.h"
-#include "header/matrixPreProcessing.h"
+#include "../include/mmio.h"
+#include "../include/matrixPreProcessing.h"
 
 
 MatrixData read_matrix(FILE * f) {
@@ -122,8 +122,8 @@ ELLPACKMatrix convert_to_ELLPACK(MatrixData data) {
     A.M = data.M;
     A.N = data.N;
     A.MAXNZ = maxnz;
-    A.JA = (int *) malloc(data.M * sizeof(int));
-    A.AS = (double *) malloc(data.M * sizeof(double));
+    A.JA = (int **) malloc(data.M * sizeof(int));
+    A.AS = (double **) malloc(data.M * sizeof(double));
     for (int i=0; i<data.M; i++) {
         A.JA[i] = (int *) malloc(maxnz * sizeof(int));
         A.AS[i] = (double *) malloc(maxnz * sizeof(double));

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "header/matrixPreProcessing.h"
+#include "./include/matrixPreProcessing.h"
 #include <unistd.h>
 #include <limits.h>
 
