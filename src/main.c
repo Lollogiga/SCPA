@@ -4,11 +4,13 @@
 #include <unistd.h>
 #include <limits.h>
 
+
+
+//TODO: Gestire l'apertura di diversi file
 int main(void) {
+
     FILE *f;
     //Open Matrix Market file
-    //TODO: Gestire l'apertura di diversi file
-
     if ((f = fopen("../matrix/example.mtx", "r")) == NULL) {
         perror("Error opening file\n");
         exit(-1);
@@ -26,11 +28,15 @@ int main(void) {
 
     ELLPACKMatrix ellpackMatrix = convert_to_ELLPACK(rawMatrixData );
 
-    for (int i =0; i < ellpackMatrix.N; i++) {
-        for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
-            printf("JA[%d][%d] = %f\n", i, j, ellpackMatrix.AS[i][j]);
-        }
-    }
+    //Print for debugging:
+    printf("Matrix: \n");
+    print_matrix_data(rawMatrixData);
+    printf("CSR Matrix: \n");
+    print_csr_matrix(csrMatrix);
+    printf("ELLPACK Matrix: \n");
+    print_ellpack_matrix(ellpackMatrix);
+
+
     //Free memory:
     free(rawMatrixData.val);
     free(rawMatrixData.I);

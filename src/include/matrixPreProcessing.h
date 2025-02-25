@@ -143,4 +143,9 @@ typedef struct {
 MatrixData read_matrix(FILE *f);
 CSRMatrix convert_to_CSR(MatrixData matrix);
 ELLPACKMatrix convert_to_ELLPACK(MatrixData matrix);
+
+//Function for debugging:
+void print_ellpack_matrix(ELLPACKMatrix matrix);
+void print_matrix_data(MatrixData matrix);
+void print_csr_matrix(CSRMatrix matrix);
 #endif //MATRIXPREPROCESSING_H

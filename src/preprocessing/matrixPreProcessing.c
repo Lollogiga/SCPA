@@ -95,13 +95,11 @@ MatrixData read_matrix(FILE *f) {
             data.val[index] = val;
 
             index++;
-
             //If the matrix is symmetric, and we aren't on diagonal:
-            if (sym && data.I[index] != data.J[index]) {
+            if (sym && row != col) {
                 data.I[index] = col;
                 data.J[index] = row;
                 data.val[index] = val;
-
                 index++;
             }
         }
@@ -148,7 +146,7 @@ CSRMatrix convert_to_CSR(MatrixData rawMatrixData) {
         csrMatrix.IRP[i] += csrMatrix.IRP[i-1];
     }
 
-    // 4. Inserimento degli elementi in JA e AS
+    // Inserimento degli elementi in JA e AS
     int *row_offset = calloc(csrMatrix.M, sizeof(int));
     for (int i = 0; i < rawMatrixData.NZ; i++) {
         int row = rawMatrixData.I[i];
@@ -158,30 +156,32 @@ CSRMatrix convert_to_CSR(MatrixData rawMatrixData) {
         row_offset[row]++;
     }
 
-    //free(row_offset);
+    free(row_offset);
 
     return csrMatrix;
 }
+
 
 //TODO check
 ELLPACKMatrix convert_to_ELLPACK(MatrixData data) {
     ELLPACKMatrix A;
 
-    //1. Calculate #NZ for each rows
+    //Calculate #NZ for each rows
     int *row_counts = (int *) calloc(data.M, sizeof(int));
     for (int i=0; i<data.NZ; i++) {
         row_counts[data.I[i]]++;
     }
 
-    //2. Search for max:
+    //Search for max:
     int maxnz = 0;
     for (int i=0; i<data.M; i++) {
         if (row_counts[i] > maxnz) {
             maxnz = row_counts[i];
         }
     }
+    free(row_counts);
 
-    //3.Fill ELLPACK struct
+    //Fill ELLPACK struct
     A.M = data.M;
     A.N = data.N;
     A.MAXNZ = maxnz;
@@ -206,8 +206,42 @@ ELLPACKMatrix convert_to_ELLPACK(MatrixData data) {
         A.AS[row][pos] = data.val[i];
         row_offset[row]++;
     }
+    free(row_offset);
 
-    //free(row_counts);
-    //free(row_offset);
     return A;
+}
+
+//Function for debugging:
+void print_ellpack_matrix(ELLPACKMatrix ellpackMatrix) {
+    for (int i =0; i < ellpackMatrix.N; i++) {
+        for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
+            printf("JA[%d][%d] = %f\n", i, j, ellpackMatrix.AS[i][j]);
+        }
+    }
+
+    for (int i =0; i < ellpackMatrix.N; i++) {
+        for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
+            printf("AS[%d][%d] = %f\n", i, j, ellpackMatrix.AS[i][j]);
+        }
+    }
+
+}
+
+void print_matrix_data(MatrixData data) {
+    for (int i=0; i<data.NZ; i++) {
+        printf("A[%d][%d] = %f\n", data.I[i], data.J[i], data.val[i]);
+    }
+}
+
+void print_csr_matrix(CSRMatrix csrMatrix) {
+    for (int i = 0; i <= csrMatrix.M; i++) {
+        printf("IRP[%d] = %d\n", i, csrMatrix.IRP[i]);
+    }
+
+    for (int i = 0; i < csrMatrix.NZ; i++) {
+        printf("JA[%d] = %d\n", i, csrMatrix.JA[i]);
+    }
+    for (int i = 0; i < csrMatrix.NZ; i++) {
+        printf("AS[%d] = %f\n", i, csrMatrix.AS[i]);
+    }
 }
