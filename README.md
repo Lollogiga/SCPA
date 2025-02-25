@@ -4,7 +4,7 @@
 
 > - [x] Scaricare le matrici di test
 
-> - [ ] Convertire le matrici in formato ```CSR```
+> - [x] Convertire le matrici in formato ```CSR```
 > - [ ] Convertire le matrici in formato ```ELLPACK```
 > - [ ] Convertire le matrici in formato ```HLL```
 
