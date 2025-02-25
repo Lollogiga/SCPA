@@ -215,7 +215,7 @@ ELLPACKMatrix convert_to_ELLPACK(MatrixData data) {
 void print_ellpack_matrix(ELLPACKMatrix ellpackMatrix) {
     for (int i =0; i < ellpackMatrix.N; i++) {
         for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
-            printf("JA[%d][%d] = %f\n", i, j, ellpackMatrix.AS[i][j]);
+            printf("JA[%d][%d] = %d\n", i, j, ellpackMatrix.JA[i][j]);
         }
     }
 

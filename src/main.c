@@ -11,7 +11,7 @@ int main(void) {
 
     FILE *f;
     //Open Matrix Market file
-    if ((f = fopen("../matrix/example.mtx", "r")) == NULL) {
+    if ((f = fopen("../matrix/ns_example.mtx", "r")) == NULL) {
         perror("Error opening file\n");
         exit(-1);
     }
