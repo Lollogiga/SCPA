@@ -44,13 +44,12 @@ MatrixData read_matrix(FILE *f) {
     //Check if matrix is symmetric:
     int sym = mm_is_symmetric(matcode);
     printf("Matrix is symmetric?: %d\n", sym);
-    int nz_alloc = sym ? 2 * data.NZ : data.NZ; //If matrix is sym, the value of Nz is at most double
+    int nz_alloc = sym ? 2 * data.NZ : data.NZ; //If matrix is sym, the value of NZ is at most double
 
     // Dynamically allocate memory for the sparse matrix's row indices, column indices, and values
     data.I = (int *) malloc(nz_alloc * sizeof(int));
     data.J = (int *) malloc(nz_alloc * sizeof(int));
     data.val = (double *) malloc(nz_alloc * sizeof(double));
-
 
     /*
      * NOTE: When reading double values, ANSI C requires the use of the "l" specifier,
@@ -61,8 +60,7 @@ MatrixData read_matrix(FILE *f) {
      */
 
     int index = 0;
-    for (int i=0; i<data.NZ; i++)
-    {
+    for (int i = 0; i < data.NZ; i++) {
         /* Retrieve row, col and val from file line */
         char line[MAX_LENGTH_MATRIX_FILE_ROW];  // assuming each line is small enough for this buffer
         if (fgets(line, sizeof(line), f)) {
@@ -95,6 +93,7 @@ MatrixData read_matrix(FILE *f) {
             data.val[index] = val;
 
             index++;
+
             //If the matrix is symmetric, and we aren't on diagonal:
             if (sym && row != col) {
                 data.I[index] = col;
@@ -137,97 +136,72 @@ CSRMatrix convert_to_CSR(MatrixData rawMatrixData) {
     csrMatrix.AS  = (double *) malloc(csrMatrix.NZ * sizeof(double));
 
     //Count NZ for each row:
-    for (int i=0; i<rawMatrixData.NZ; i++) {
+    for (int i = 0; i < rawMatrixData.NZ; i++) {
         csrMatrix.IRP[rawMatrixData.I[i] + 1]++;
     }
 
     //Calcutate IRP: A.IRP[i] = A.IRP[i-1] + #NZ_at_i-1:
-    for (int i=1; i <= csrMatrix.M; i++) {
+    for (int i = 1; i <= csrMatrix.M; i++) {
         csrMatrix.IRP[i] += csrMatrix.IRP[i-1];
     }
 
     // Inserimento degli elementi in JA e AS
-    //int *row_offset = calloc(csrMatrix.M, sizeof(int));
     for (int i = 0; i < rawMatrixData.NZ; i++) {
-        //int row = rawMatrixData.I[i];
-        //int pos = csrMatrix.IRP[row] + row_offset[row];
         csrMatrix.JA[i] = rawMatrixData.J[i];
         csrMatrix.AS[i] = rawMatrixData.val[i];
-        //row_offset[row]++;
     }
-
-    //free(row_offset);
 
     return csrMatrix;
 }
 
-
-//TODO check
-ELLPACKMatrix convert_to_ELLPACK(MatrixData data) {
+ELLPACKMatrix convert_to_ELLPACK(MatrixData rawMatrixData) {
     ELLPACKMatrix A;
 
     //Calculate #NZ for each rows
-    int *row_counts = (int *) calloc(data.M, sizeof(int));
-    for (int i=0; i<data.NZ; i++) {
-        row_counts[data.I[i]]++;
-    }
+    int *row_counts = calloc(rawMatrixData.M, sizeof(int));
+    for (int i = 0; i < rawMatrixData.NZ; i++)
+        row_counts[rawMatrixData.I[i]]++;
 
     //Search for max:
     int maxnz = 0;
-    for (int i=0; i<data.M; i++) {
-        if (row_counts[i] > maxnz) {
+    for (int i = 0; i < rawMatrixData.M; i++) {
+        if (row_counts[i] > maxnz)
             maxnz = row_counts[i];
+    }
+
+    //Fill ELLPACK struct
+    A.M = rawMatrixData.M;
+    A.N = rawMatrixData.N;
+    A.MAXNZ = maxnz;
+    A.JA = (int **) malloc(rawMatrixData.M * sizeof(int));
+    A.AS = (double **) malloc(rawMatrixData.M * sizeof(double));
+    for (int i = 0; i < rawMatrixData.M; i++) {
+        A.JA[i] = (int *) calloc(maxnz, sizeof(int));
+        A.AS[i] = (double *) calloc(maxnz, sizeof(double));
+    }
+
+    int *row_offset = calloc(rawMatrixData.M, sizeof(int));
+    for (int i = 0; i < rawMatrixData.NZ; i++) {
+        int row = rawMatrixData.I[i];
+        int pos = row_offset[row];  // Posizione corrente nella riga "row"
+
+        A.JA[row][pos] = rawMatrixData.J[i];
+        A.AS[row][pos] = rawMatrixData.val[i];
+
+        row_offset[row]++;
+
+        if (row_counts[row] == pos + 1) {
+            for (int j = pos + 1; j < maxnz; j++)
+                A.JA[row][j] = rawMatrixData.J[i];
         }
     }
     free(row_counts);
-
-    //Fill ELLPACK struct
-    A.M = data.M;
-    A.N = data.N;
-    A.MAXNZ = maxnz;
-    A.JA = (int **) malloc(data.M * sizeof(int));
-    A.AS = (double **) malloc(data.M * sizeof(double));
-    for (int i=0; i<data.M; i++) {
-        A.JA[i] = (int *) malloc(maxnz * sizeof(int));
-        A.AS[i] = (double *) malloc(maxnz * sizeof(double));
-        //Init matrix
-        for (int j=0; j<maxnz; j++) {
-            A.JA[i][j] = 0;
-            A.AS[i][j] = 0;
-        }
-    }
-
-    int *row_offset =  calloc(data.M, sizeof(int));
-
-    for (int i = 0; i < data.NZ; i++) {
-        int row = data.I[i];
-        int pos = row_offset[row];  // Posizione corrente nella riga "row"
-        A.JA[row][pos] = data.J[i];
-        A.AS[row][pos] = data.val[i];
-
-        row_offset[row]++;
-    }
     free(row_offset);
 
     return A;
 }
 
 //Function for debugging:
-void print_ellpack_matrix(ELLPACKMatrix ellpackMatrix) {
-    for (int i =0; i < ellpackMatrix.N; i++) {
-        for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
-            printf("JA[%d][%d] = %d\n", i, j, ellpackMatrix.JA[i][j]);
-        }
-    }
-
-    for (int i =0; i < ellpackMatrix.N; i++) {
-        for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
-            printf("AS[%d][%d] = %f\n", i, j, ellpackMatrix.AS[i][j]);
-        }
-    }
-
-}
-
 void print_matrix_data(MatrixData data) {
     for (int i=0; i<data.NZ; i++) {
         printf("A[%d][%d] = %f\n", data.I[i], data.J[i], data.val[i]);
@@ -242,7 +216,22 @@ void print_csr_matrix(CSRMatrix csrMatrix) {
     for (int i = 0; i < csrMatrix.NZ; i++) {
         printf("JA[%d] = %d\n", i, csrMatrix.JA[i]);
     }
+
     for (int i = 0; i < csrMatrix.NZ; i++) {
         printf("AS[%d] = %f\n", i, csrMatrix.AS[i]);
+    }
+}
+
+void print_ellpack_matrix(ELLPACKMatrix ellpackMatrix) {
+    for (int i = 0; i < ellpackMatrix.N; i++) {
+        for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
+            printf("JA[%d][%d] = %d\n", i, j, ellpackMatrix.JA[i][j]);
+        }
+    }
+
+    for (int i = 0; i < ellpackMatrix.N; i++) {
+        for (int j = 0; j < ellpackMatrix.MAXNZ; j++) {
+            printf("AS[%d][%d] = %f\n", i, j, ellpackMatrix.AS[i][j]);
+        }
     }
 }

@@ -11,7 +11,7 @@ int main(void) {
 
     FILE *f;
     //Open Matrix Market file
-    if ((f = fopen("../matrix/ns_example.mtx", "r")) == NULL) {
+    if ((f = fopen("../matrix/example.mtx", "r")) == NULL) {
         perror("Error opening file\n");
         exit(-1);
     }
@@ -35,7 +35,6 @@ int main(void) {
     print_csr_matrix(csrMatrix);
     printf("ELLPACK Matrix: \n");
     print_ellpack_matrix(ellpackMatrix);
-
 
     //Free memory:
     free(rawMatrixData.val);
