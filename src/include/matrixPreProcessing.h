@@ -5,6 +5,8 @@
 #ifndef MATRIXPREPROCESSING_H
 #define MATRIXPREPROCESSING_H
 
+#include "./constants.h"
+
 /**
  * @brief Data structure for storing a sparse matrix in MatrixMarket format.
  *
@@ -35,13 +37,13 @@
  * @endcode
  */
 typedef struct {
-    int M;  /**< Total number of rows in the matrix */
-    int N;  /**< Total number of columns in the matrix */
-    int NZ; /**< Number of nonzero elements in the matrix */
+    MatT M;  /**< Total number of rows in the matrix */
+    MatT N;  /**< Total number of columns in the matrix */
+    MatT NZ; /**< Number of nonzero elements in the matrix */
 
-    int *I;      /**< Array of row indices for nonzero elements (size: NZ) */
-    int *J;      /**< Array of column indices for nonzero elements (size: NZ) */
-    double *val; /**< Array of nonzero values in the matrix (size: NZ) */
+    MatT *I;      /**< Array of row indices for nonzero elements (size: NZ) */
+    MatT *J;      /**< Array of column indices for nonzero elements (size: NZ) */
+    MatVal *val; /**< Array of nonzero values in the matrix (size: NZ) */
 } MatrixData;
 
 /**
@@ -78,13 +80,13 @@ typedef struct {
  * @endcode
  */
 typedef struct {
-    int M;  /**< Total number of rows in the matrix */
-    int N;  /**< Total number of columns in the matrix */
-    int NZ; /**< Number of nonzero elements in the matrix */
+    MatT M;  /**< Total number of rows in the matrix */
+    MatT N;  /**< Total number of columns in the matrix */
+    MatT NZ; /**< Number of nonzero elements in the matrix */
 
-    int *IRP;  /**< Row pointer array (size: M+1). \n IRP[i] stores the index in JA/AS where row i starts. */
-    int *JA;   /**< Column indices of nonzero elements (size: NZ). */
-    double *AS; /**< Array of nonzero values in the matrix (size: NZ). */
+    MatT *IRP;  /**< Row pointer array (size: M+1). \n IRP[i] stores the index in JA/AS where row i starts. */
+    MatT *JA;   /**< Column indices of nonzero elements (size: NZ). */
+    MatVal *AS; /**< Array of nonzero values in the matrix (size: NZ). */
 } CSRMatrix;
 
 /**
@@ -132,12 +134,12 @@ typedef struct {
  * @endcode
  */
 typedef struct {
-    int M;      /**< Total number of rows in the matrix */
-    int N;      /**< Total number of columns in the matrix */
-    int MAXNZ;  /**< Maximum number of nonzero elements per row */
+    MatT M;      /**< Total number of rows in the matrix */
+    MatT N;      /**< Total number of columns in the matrix */
+    MatT MAXNZ;  /**< Maximum number of nonzero elements per row */
 
-    int **JA;   /**< 2D array (size: M x MAXNZ) storing column indices of nonzero elements. */
-    double **AS; /**< 2D array (size: M x MAXNZ) storing nonzero values. */
+    MatT **JA;   /**< 2D array (size: M x MAXNZ) storing column indices of nonzero elements. */
+    MatVal **AS; /**< 2D array (size: M x MAXNZ) storing nonzero values. */
 } ELLPACKMatrix;
 
 MatrixData read_matrix(FILE *f);
