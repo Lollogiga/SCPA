@@ -147,16 +147,16 @@ CSRMatrix convert_to_CSR(MatrixData rawMatrixData) {
     }
 
     // Inserimento degli elementi in JA e AS
-    int *row_offset = calloc(csrMatrix.M, sizeof(int));
+    //int *row_offset = calloc(csrMatrix.M, sizeof(int));
     for (int i = 0; i < rawMatrixData.NZ; i++) {
-        int row = rawMatrixData.I[i];
-        int pos = csrMatrix.IRP[row] + row_offset[row];
-        csrMatrix.JA[pos] = rawMatrixData.J[i];
-        csrMatrix.AS[pos] = rawMatrixData.val[i];
-        row_offset[row]++;
+        //int row = rawMatrixData.I[i];
+        //int pos = csrMatrix.IRP[row] + row_offset[row];
+        csrMatrix.JA[i] = rawMatrixData.J[i];
+        csrMatrix.AS[i] = rawMatrixData.val[i];
+        //row_offset[row]++;
     }
 
-    free(row_offset);
+    //free(row_offset);
 
     return csrMatrix;
 }
@@ -197,13 +197,14 @@ ELLPACKMatrix convert_to_ELLPACK(MatrixData data) {
         }
     }
 
-    int *row_offset = (int *) calloc(data.M, sizeof(int));
+    int *row_offset =  calloc(data.M, sizeof(int));
 
     for (int i = 0; i < data.NZ; i++) {
         int row = data.I[i];
         int pos = row_offset[row];  // Posizione corrente nella riga "row"
         A.JA[row][pos] = data.J[i];
         A.AS[row][pos] = data.val[i];
+
         row_offset[row]++;
     }
     free(row_offset);
