@@ -133,6 +133,7 @@ typedef struct {
  * }
  * @endcode
  */
+
 typedef struct {
     MatT M;      /**< Total number of rows in the matrix */
     MatT N;      /**< Total number of columns in the matrix */
@@ -140,14 +141,28 @@ typedef struct {
 
     MatT **JA;   /**< 2D array (size: M x MAXNZ) storing column indices of nonzero elements. */
     MatVal **AS; /**< 2D array (size: M x MAXNZ) storing nonzero values. */
-} ELLPACKMatrix;
+}ELLPACKMatrix;
 
-MatrixData read_matrix(FILE *f);
-CSRMatrix convert_to_CSR(MatrixData matrix);
-ELLPACKMatrix convert_to_ELLPACK(MatrixData matrix);
+
+typedef struct {
+    MatT numBlocks; /**< Total number of block for matrix */
+    int hackSize;  /**< Size (Number of rows) of each block */
+    MatT N;          /**< Total number of columns in the matrix*/
+    ELLPACKMatrix *blocks; /**< List of block */
+}HLLMatrix;
+
+MatrixData *read_matrix(FILE *f);
+CSRMatrix *convert_to_CSR(MatrixData *matrix);
+HLLMatrix *convert_to_HLL(MatrixData *matrix, int hackSize);
+ELLPACKMatrix *convert_to_ELLPACK(MatrixData *matrix);
 
 //Function for debugging:
-void print_ellpack_matrix(ELLPACKMatrix matrix);
-void print_matrix_data(MatrixData matrix);
-void print_csr_matrix(CSRMatrix matrix);
+void print_ellpack_matrix(ELLPACKMatrix *matrix);
+void print_matrix_data(MatrixData *matrix);
+void print_csr_matrix(CSRMatrix *matrix);
+
+//Function for deallocation:
+void free_MatrixData(MatrixData *matrix);
+void free_CSRMatrix(CSRMatrix *matrix);
+void free_ELLPACKMatrix(ELLPACKMatrix *A);
 #endif //MATRIXPREPROCESSING_H
