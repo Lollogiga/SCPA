@@ -174,51 +174,103 @@ CSRMatrix *convert_to_CSR(MatrixData *rawMatrixData) {
     return csrMatrix;
 }
 
-/*HLLMatrix *convert_to_HLL(MatrixData *rawMatrixData, int hack_size) {
-    HLLMatrix *hllMatrix = (HLLMatrix *) malloc(sizeof(HLLMatrix));
-    hllMatrix->hackSize = hack_size;
-    hllMatrix->N = rawMatrixData->N;
+/*CSRMatrix *extractCSRBlock(CSRMatrix *csr, MatT start, MatT end) {
 
-    //Calcolo il numero di blocco necessario
-    hllMatrix->numBlocks = ()
+    CSRMatrix *csrBlock = malloc(sizeof(CSRMatrix));
+    if (!csrBlock) {
+        perror("Memory allocation error");
+        return NULL;
+    }
 
+    csrBlock->M = end - start;
+    csrBlock->N = csr->N;
+
+    // Il numero di elementi non zero per il nuovo blocco
+    csrBlock->NZ = csr->IRP[end] - csr->IRP[start];
+
+    // Allocazione memoria
+    csrBlock->IRP = (MatT *)malloc((csrBlock->M + 1) * sizeof(MatT));
+    csrBlock->JA = (MatT *)malloc(csrBlock->NZ * sizeof(MatT));
+    csrBlock->AS = (MatVal *)malloc(csrBlock->NZ * sizeof(MatVal));
+
+    // Copia il vettore IRP, traslando gli indici
+    MatT baseIndex = csr->IRP[start];
+    for (MatT i = 0; i <= csrBlock->M; i++) {
+        csrBlock->IRP[i] = csr->IRP[start + i] - baseIndex;
+    }
+
+    // Copia JA e AS
+    for (MatT i = 0; i < csrBlock->NZ; i++) {
+        csrBlock->JA[i] = csr->JA[baseIndex + i];
+        csrBlock->AS[i] = csr->AS[baseIndex + i];
+    }
+
+    return csrBlock;
 }*/
 
-ELLPACKMatrix *convert_to_ELLPACK(MatrixData *rawMatrixData) {
+/*HLLMatrix *convert_to_HLL(CSRMatrix *csrMatrix, int hackSize) {
+    HLLMatrix *hllMatrix = (HLLMatrix *) malloc(sizeof(HLLMatrix));
+    if (!hllMatrix) {
+        perror("Memory allocation error");
+        return NULL;
+    }
+
+    hllMatrix->hackSize = hackSize;
+    hllMatrix->N = csrMatrix->N;
+
+    //Compute number of blocks:
+    hllMatrix->numBlocks = (csrMatrix->M + hackSize - 1) / hackSize; //Rounding up
+
+    //Allocate memory:
+    hllMatrix->blocks = (ELLPACKMatrix **)malloc(hllMatrix->numBlocks * sizeof(ELLPACKMatrix*));
+
+    //Manage each block:
+    for (MatT i = 0; i < hllMatrix->numBlocks; i++) {
+        //Define start and end point
+        MatT row_start = i*hllMatrix->hackSize;
+        MatT row_end = (row_start + hllMatrix->hackSize > csrMatrix->M) ? csrMatrix->M : row_start + hllMatrix->hackSize;
+
+        CSRMatrix *csrBlock = extractCSRBlock(csrMatrix, row_start, row_end);
+        if (!csrBlock) {
+            perror("Memory allocation error");
+            return NULL;
+        }
+        hllMatrix->blocks[i] = convert_to_ELLPACK(csrBlock);
+        free_CSRMatrix(csrBlock);
+    }
+
+    return hllMatrix;
+}*/
+
+ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csrMatrix) {
+
     ELLPACKMatrix *A = malloc(sizeof(ELLPACKMatrix));
-    if (!A) {
+    if(!A) {
         perror("Memory allocation error");
         return NULL;
     }
 
-    //Calculate #NZ for each rows
-    int *row_counts = calloc(rawMatrixData->M, sizeof(MatT));
-    if (!row_counts) {
-        perror("Memory allocation error");
-        free(A);
-        return NULL;
+    A->M = csrMatrix->M;
+    A->N = csrMatrix->N;
+
+    //Find maxnz for row:
+    A->MAXNZ = 0;
+    MatT row_nnz;
+    for (int i = 0; i < csrMatrix->M; i++) {
+        //Derive from definition of IRP
+        row_nnz = csrMatrix->IRP[i + 1] - csrMatrix->IRP[i];
+        if (row_nnz > A->MAXNZ) {
+            A->MAXNZ = row_nnz;
+        }
     }
 
-    for (int i = 0; i < rawMatrixData->NZ; i++) row_counts[rawMatrixData->I[i]]++;
+    //Allocate memory for JA and AS:
+    A->JA = (MatT **) malloc(A->M * sizeof(MatT *));
+    A->AS = (MatVal **) malloc(A->M * sizeof(MatVal *));
 
-    //Search for max:
-    int maxnz = 0;
-
-    for (int i = 0; i < rawMatrixData->M; i++) {
-        if (row_counts[i] > maxnz)
-            maxnz = row_counts[i];
-    }
-
-    //Fill ELLPACK struct
-    A->M = rawMatrixData->M;
-    A->N = rawMatrixData->N;
-    A->MAXNZ = maxnz;
-    A->JA = (MatT **) malloc(rawMatrixData->M * sizeof(MatT *));
-    A->AS = (MatVal **) malloc(rawMatrixData->M * sizeof(MatVal *));
-
-    for (int i = 0; i < rawMatrixData->M; i++) {
-        A->JA[i] = (MatT *) calloc(maxnz, sizeof(MatT));
-        A->AS[i] = (MatVal *) calloc(maxnz, sizeof(MatVal));
+    for (int i = 0; i < A->M; i++) {
+        A->JA[i] = (MatT *) calloc(A->MAXNZ, sizeof(MatT));
+        A->AS[i] = (MatVal *) calloc(A->MAXNZ, sizeof(MatVal));
 
         if (!A->JA[i] || !A->AS[i]) {
             perror("Memory allocation error");
@@ -229,33 +281,34 @@ ELLPACKMatrix *convert_to_ELLPACK(MatrixData *rawMatrixData) {
             }
             free(A->JA);
             free(A->AS);
-            free(row_counts);
             free(A);
 
             return NULL;
         }
     }
 
-    MatT *row_offset = calloc(rawMatrixData->M, sizeof(MatT));
-    for (int i = 0; i < rawMatrixData->NZ; i++) {
-        MatT row = rawMatrixData->I[i];
-        MatT pos = row_offset[row];  // Posizione corrente nella riga "row"
+    //FILL A->JA and A->AS
 
-        A->JA[row][pos] = rawMatrixData->J[i];
-        A->AS[row][pos] = rawMatrixData->val[i];
+    for (MatT i = 0; i < A->M; i++) {
 
-        row_offset[row]++;
+        row_nnz = csrMatrix->IRP[i+1] - csrMatrix->IRP[i];
+        MatT row_start = csrMatrix->IRP[i];
+        MatT j;
 
-        if (row_counts[row] == pos + 1) {
-            for (MatT j = pos + 1; j < maxnz; j++)
-                A->JA[row][j] = rawMatrixData->J[i];
+        for (j = 0; j < row_nnz; j++) {
+            A->JA[i][j] = csrMatrix->JA[row_start + j];
+            A->AS[i][j] = csrMatrix->AS[row_start + j];
+
+        }
+        //Fill JA matrix with last valid index if row_nnz < maxnz
+        for (; j < A->MAXNZ; j++) {
+            A->JA[i][j] = (j>0) ? A->JA[i][j-1] : 0;
         }
     }
-    free(row_counts);
-    free(row_offset);
-
     return A;
+
 }
+
 
 //Function for debugging:
 void print_matrix_data(MatrixData *data) {

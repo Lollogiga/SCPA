@@ -10,7 +10,7 @@ int main(void) {
 
     FILE *f;
     //Open Matrix Market file
-    if ((f = fopen("../matrix/ns_example.mtx", "r")) == NULL) {
+    if ((f = fopen("../matrix/symmetrical_example.mtx", "r")) == NULL) {
         perror("Error opening file\n");
         exit(-1);
     }
@@ -25,7 +25,7 @@ int main(void) {
     //Convert in CSR format:
     CSRMatrix *csrMatrix = convert_to_CSR(rawMatrixData );
 
-    ELLPACKMatrix *ellpackMatrix = convert_to_ELLPACK(rawMatrixData );
+    ELLPACKMatrix *ellpackMatrix = convert_to_ELLPACK(csrMatrix);
 
     //Print for debugging:
     printf("Matrix: \n");
@@ -42,3 +42,6 @@ int main(void) {
 
     return 0;
 }
+
+
+
