@@ -135,7 +135,6 @@ typedef struct {
  * }
  * @endcode
  */
-
 typedef struct {
     MatT M;      /**< Total number of rows in the matrix */
     MatT N;      /**< Total number of columns in the matrix */
@@ -143,15 +142,15 @@ typedef struct {
 
     MatT **JA;   /**< 2D array (size: M x MAXNZ) storing column indices of nonzero elements. */
     MatVal **AS; /**< 2D array (size: M x MAXNZ) storing nonzero values. */
-}ELLPACKMatrix;
+} ELLPACKMatrix;
 
 
 typedef struct {
-    MatT numBlocks; /**< Total number of block for matrix */
-    int hackSize;  /**< Size (Number of rows) of each block */
-    MatT N;          /**< Total number of columns in the matrix*/
-    ELLPACKMatrix *blocks; /**< List of block */
-}HLLMatrix;
+    MatT numBlocks;         /**< Total number of block for matrix */
+    int hackSize;           /**< Size (Number of rows) of each block */
+    MatT N;                 /**< Total number of columns in the matrix*/
+    ELLPACKMatrix *blocks;  /**< List of block */
+} HLLMatrix;
 
 MatrixData *read_matrix(FILE *f);
 CSRMatrix *convert_to_CSR(MatrixData *matrix);

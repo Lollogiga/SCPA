@@ -6,11 +6,11 @@
 #include "./include/matricDealloc.h"
 #include "./include/matrixPrint.h"
 
-//TODO: Gestire l'apertura di diversi file
+// TODO: Gestire l'apertura di diversi file
 int main(void) {
 
     FILE *f;
-    //Open Matrix Market file
+    // Open Matrix Market file
     if ((f = fopen("../matrixTest/symmetrical_example.mtx", "r")) == NULL) {
         perror("Error opening file\n");
         exit(-1);
@@ -23,18 +23,21 @@ int main(void) {
         exit(-1);
     }
 
-    //Convert in CSR format:
+    // Convert in CSR format:
     CSRMatrix *csrMatrix = convert_to_CSR(rawMatrixData );
 
+    // Convert in ELLPACK format:
     ELLPACKMatrix *ellpackMatrix = convert_to_ELLPACK(csrMatrix);
 
-    //Print for debugging:
-    printf("Matrix: \n");
-    print_matrix_data(rawMatrixData);
-    printf("CSR Matrix: \n");
-    print_csr_matrix(csrMatrix);
-    printf("ELLPACK Matrix: \n");
-    print_ellpack_matrix(ellpackMatrix);
+    // Print for debugging:
+    printf("\nMatrix: \n");
+    print_matrix_data_verbose(rawMatrixData,false);
+
+    printf("\nCSR Matrix: \n");
+    print_csr_matrix_verbose(csrMatrix, false);
+
+    printf("\nELLPACK Matrix: \n");
+    print_ellpack_matrix_verbose(ellpackMatrix, false);
 
     //Free memory:
     free_MatrixData(rawMatrixData);
