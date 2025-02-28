@@ -5,6 +5,8 @@
 #ifndef MATRIXPREPROCESSING_H
 #define MATRIXPREPROCESSING_H
 
+#include <stdio.h>
+
 #include "./constants.h"
 
 /**
@@ -156,14 +158,4 @@ CSRMatrix *convert_to_CSR(MatrixData *matrix);
 ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *matrix);
 HLLMatrix *convert_to_HLL(CSRMatrix *matrix, int hackSize);
 
-
-//Function for debugging:
-void print_ellpack_matrix(ELLPACKMatrix *matrix);
-void print_matrix_data(MatrixData *matrix);
-void print_csr_matrix(CSRMatrix *matrix);
-
-//Function for deallocation:
-void free_MatrixData(MatrixData *matrix);
-void free_CSRMatrix(CSRMatrix *matrix);
-void free_ELLPACKMatrix(ELLPACKMatrix *A);
 #endif //MATRIXPREPROCESSING_H

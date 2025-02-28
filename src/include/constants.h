@@ -1,8 +1,6 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#include <stdint.h>
-
 // Constants
 #define MATRIX_FILE_MAX_ROW_LENGTH 256 // Maximum length of a row in the matrix file
 #define HACK_SIZE 32

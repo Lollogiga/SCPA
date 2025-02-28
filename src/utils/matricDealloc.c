@@ -1,0 +1,49 @@
+//
+// Created by buniy on 28/02/2025.
+//
+
+#include <stdlib.h>
+
+#include "../include/matricDealloc.h"
+
+// Functions for deallocation:
+void free_MatrixData(MatrixData *data) {
+    if (!data) return;
+
+    if (data->I) free(data->I);
+    if (data->J) free(data->J);
+    if (data->val) free(data->val);
+
+    free(data);
+}
+
+void free_CSRMatrix(CSRMatrix *csr) {
+    if (!csr) return;
+
+    if (csr->IRP) free(csr->IRP);
+    if (csr->JA) free(csr->JA);
+    if (csr->AS) free(csr->AS);
+
+    free(csr);
+}
+
+void free_ELLPACKMatrix(ELLPACKMatrix *ell) {
+    if (!ell) return;
+
+    if (ell->AS) {
+        for (int i = 0; i < ell->M; i++) {
+            free(ell->AS[i]);
+            ell->AS[i] = NULL;
+        }
+        free(ell->AS);
+    }
+
+    if (ell->JA) {
+        for (int i = 0; i < ell->M; i++) {
+            free(ell->JA[i]);
+        }
+        free(ell->JA);
+    }
+
+    free(ell);
+}

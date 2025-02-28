@@ -1,11 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../include/mmio.h"
-#include "../include/matrixPreProcessing.h"
-
 #include "../include/constants.h"
-
+#include "../include/matrixPreProcessing.h"
+#include "../include/mmio.h"
 
 MatrixData *read_matrix(FILE *f) {
 
@@ -253,7 +251,7 @@ ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csrMatrix) {
     A->M = csrMatrix->M;
     A->N = csrMatrix->N;
 
-    //Find maxnz for row:
+    // Find maxnz for row:
     A->MAXNZ = 0;
     MatT row_nnz;
     for (int i = 0; i < csrMatrix->M; i++) {
@@ -264,7 +262,7 @@ ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csrMatrix) {
         }
     }
 
-    //Allocate memory for JA and AS:
+    // Allocate memory for JA and AS:
     A->JA = (MatT **) malloc(A->M * sizeof(MatT *));
     A->AS = (MatVal **) malloc(A->M * sizeof(MatVal *));
 
@@ -274,7 +272,7 @@ ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csrMatrix) {
 
         if (!A->JA[i] || !A->AS[i]) {
             perror("Memory allocation error");
-            //Deallocate all previous rows:
+            // Deallocate all previous rows:
             for (int j = 0; j < i; j++) {
                 free(A->JA[j]);
                 free(A->AS[j]);
@@ -287,7 +285,7 @@ ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csrMatrix) {
         }
     }
 
-    //FILL A->JA and A->AS
+    // FILL A->JA and A->AS
 
     for (MatT i = 0; i < A->M; i++) {
 
@@ -305,86 +303,6 @@ ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csrMatrix) {
             A->JA[i][j] = (j>0) ? A->JA[i][j-1] : 0;
         }
     }
+
     return A;
-
-}
-
-
-//Function for debugging:
-void print_matrix_data(MatrixData *data) {
-    for (MatT i=0; i<data->NZ; i++) {
-        printf("A[%d][%d] = %f\n", data->I[i], data->J[i], data->val[i]);
-    }
-}
-
-void print_csr_matrix(CSRMatrix *csrMatrix) {
-    for (MatT i = 0; i <= csrMatrix->M; i++) {
-        printf("IRP[%d] = %d\n", i, csrMatrix->IRP[i]);
-    }
-
-    for (MatT i = 0; i < csrMatrix->NZ; i++) {
-        printf("JA[%d] = %d\n", i, csrMatrix->JA[i]);
-    }
-
-    for (MatT i = 0; i < csrMatrix->NZ; i++) {
-        printf("AS[%d] = %f\n", i, csrMatrix->AS[i]);
-    }
-}
-
-void print_ellpack_matrix(ELLPACKMatrix *ellpackMatrix) {
-    for (MatT i = 0; i < ellpackMatrix->N; i++) {
-        for (MatT j = 0; j < ellpackMatrix->MAXNZ; j++) {
-            printf("JA[%d][%d] = %d\n", i, j, ellpackMatrix->JA[i][j]);
-        }
-    }
-
-    for (MatT i = 0; i < ellpackMatrix->N; i++) {
-        for (MatT j = 0; j < ellpackMatrix->MAXNZ; j++) {
-            printf("AS[%d][%d] = %f\n", i, j, ellpackMatrix->AS[i][j]);
-        }
-    }
-}
-
-
-//Function for deallocation:
-void free_MatrixData(MatrixData *data) {
-    if (!data) return;
-
-    if (data->I) free(data->I);
-    if (data->J) free(data->J);
-    if (data->val) free(data->val);
-
-    free(data);
-}
-
-void free_CSRMatrix(CSRMatrix *csrMatrix) {
-    if (!csrMatrix) return;
-
-    if (csrMatrix->IRP) free(csrMatrix->IRP);
-    if (csrMatrix->JA) free(csrMatrix->JA);
-    if (csrMatrix->AS) free(csrMatrix->AS);
-
-    free(csrMatrix);
-}
-
-void free_ELLPACKMatrix(ELLPACKMatrix *A) {
-    if (!A) return;
-
-
-    if (A->AS) {
-        for (int i = 0; i < A->M; i++) {
-            free(A->AS[i]);
-            A->AS[i] = NULL;
-        }
-        free(A->AS);
-    }
-
-    if (A->JA) {
-        for (int i = 0; i < A->M; i++) {
-            free(A->JA[i]);
-        }
-        free(A->JA);
-    }
-
-    free(A);
 }

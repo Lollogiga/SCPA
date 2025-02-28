@@ -1,16 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "./include/matrixPreProcessing.h"
 #include <unistd.h>
 
-
+#include "./include/matrixPreProcessing.h"
+#include "./include/matricDealloc.h"
+#include "./include/matrixPrint.h"
 
 //TODO: Gestire l'apertura di diversi file
 int main(void) {
 
     FILE *f;
     //Open Matrix Market file
-    if ((f = fopen("../matrix/symmetrical_example.mtx", "r")) == NULL) {
+    if ((f = fopen("../matrixTest/symmetrical_example.mtx", "r")) == NULL) {
         perror("Error opening file\n");
         exit(-1);
     }
