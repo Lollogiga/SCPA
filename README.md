@@ -4,9 +4,13 @@
 
 > - [x] Scaricare le matrici di test
 
+> - [x] Gestire le matrici base
+> - [x] Gestire le matrici simmetriche
+> - [x] Gestire le matrici che presentano pattern
+
 > - [x] Convertire le matrici in formato ```CSR```
 > - [x] Convertire le matrici in formato ```ELLPACK```
-> - [ ] Convertire le matrici in formato ```HLL```
+> - [x] Convertire le matrici in formato ```HLL```
 
 > - [ ] Realizzare il prodotto _**matrice**_ x _**vettore**_ nei seguenti formati:
 >   - [ ] Prodotto in ```Seriale```
