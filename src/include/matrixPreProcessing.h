@@ -155,6 +155,7 @@ typedef struct {
 MatrixData *read_matrix(FILE *f);
 CSRMatrix *convert_to_CSR(MatrixData *matrix);
 ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *matrix);
+ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int iEnd);
 HLLMatrix *convert_to_HLL(CSRMatrix *matrix, int hackSize);
 
 #endif //MATRIXPREPROCESSING_H

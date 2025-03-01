@@ -39,6 +39,11 @@ int main(void) {
     printf("\nELLPACK Matrix: \n");
     print_ellpack_matrix_verbose(ellpackMatrix, false);
 
+    // Convert in ELLPACK format:
+    ellpackMatrix = convert_to_ELLPACK_parametrized(csrMatrix, 2, 2);
+    printf("\nELLPACK Matrix reduced: \n");
+    print_ellpack_matrix_verbose(ellpackMatrix, false);
+
     //Free memory:
     free_MatrixData(rawMatrixData);
     free_CSRMatrix(csrMatrix);

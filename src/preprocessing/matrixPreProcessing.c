@@ -1,5 +1,7 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../include/constants.h"
 #include "../include/matrixPreProcessing.h"
@@ -240,69 +242,180 @@ CSRMatrix *convert_to_CSR(MatrixData *rawMatrixData) {
     return hllMatrix;
 }*/
 
-ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csrMatrix) {
+ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csr) {
+    if (!csr) {
+        errno = EINVAL;
+        perror("convert_to_ELLPACK: CSR matrix not initialized");
 
-    ELLPACKMatrix *A = malloc(sizeof(ELLPACKMatrix));
-    if(!A) {
-        perror("Memory allocation error");
         return NULL;
     }
 
-    A->M = csrMatrix->M;
-    A->N = csrMatrix->N;
+    ELLPACKMatrix *ell = malloc(sizeof(ELLPACKMatrix));
+    if (!ell) {
+        errno = EINVAL;
+        perror("convert_to_ELLPACK: Memory allocation error");
 
-    // Find maxnz for row:
-    A->MAXNZ = 0;
+        return NULL;
+    }
+
+    ell->M = csr->M;
+    ell->N = csr->N;
+
+    // Find max nz for row:
+    ell->MAXNZ = 0;
     MatT row_nnz;
-    for (int i = 0; i < csrMatrix->M; i++) {
+    for (int i = 0; i < csr->M; i++) {
         //Derive from definition of IRP
-        row_nnz = csrMatrix->IRP[i + 1] - csrMatrix->IRP[i];
-        if (row_nnz > A->MAXNZ) {
-            A->MAXNZ = row_nnz;
+        row_nnz = csr->IRP[i + 1] - csr->IRP[i];
+        if (row_nnz > ell->MAXNZ) {
+            ell->MAXNZ = row_nnz;
         }
     }
 
-    // Allocate memory for JA and AS:
-    A->JA = (MatT **) malloc(A->M * sizeof(MatT *));
-    A->AS = (MatVal **) malloc(A->M * sizeof(MatVal *));
+    /* Allocate memory for JA and AS: */
+    ell->JA = (MatT **) malloc(ell->M * sizeof(MatT *));
+    ell->AS = (MatVal **) malloc(ell->M * sizeof(MatVal *));
 
-    for (int i = 0; i < A->M; i++) {
-        A->JA[i] = (MatT *) calloc(A->MAXNZ, sizeof(MatT));
-        A->AS[i] = (MatVal *) calloc(A->MAXNZ, sizeof(MatVal));
+    for (int i = 0; i < ell->M; i++) {
+        ell->JA[i] = (MatT *) calloc(ell->MAXNZ, sizeof(MatT));
+        ell->AS[i] = (MatVal *) calloc(ell->MAXNZ, sizeof(MatVal));
 
-        if (!A->JA[i] || !A->AS[i]) {
-            perror("Memory allocation error");
+        // Check if there is an error during allocation
+        if (!ell->JA[i] || !ell->AS[i]) {
+            perror("convert_to_ELLPACK: Memory allocation error");
+
             // Deallocate all previous rows:
             for (int j = 0; j < i; j++) {
-                free(A->JA[j]);
-                free(A->AS[j]);
+                free(ell->JA[j]);
+                free(ell->AS[j]);
             }
-            free(A->JA);
-            free(A->AS);
-            free(A);
+
+            free(ell->JA);
+            free(ell->AS);
+            free(ell);
 
             return NULL;
         }
     }
 
-    // FILL A->JA and A->AS
+    // FILL ell->JA and ell->AS
+    for (MatT i = 0; i < ell->M; i++) {
 
-    for (MatT i = 0; i < A->M; i++) {
-
-        row_nnz = csrMatrix->IRP[i+1] - csrMatrix->IRP[i];
-        MatT row_start = csrMatrix->IRP[i];
+        row_nnz = csr->IRP[i+1] - csr->IRP[i];
+        MatT row_start = csr->IRP[i];
         MatT j;
 
         for (j = 0; j < row_nnz; j++) {
-            A->JA[i][j] = csrMatrix->JA[row_start + j];
-            A->AS[i][j] = csrMatrix->AS[row_start + j];
-
+            ell->JA[i][j] = csr->JA[row_start + j];
+            ell->AS[i][j] = csr->AS[row_start + j];
         }
-        //Fill JA matrix with last valid index if row_nnz < maxnz
-        for (; j < A->MAXNZ; j++) {
-            A->JA[i][j] = (j>0) ? A->JA[i][j-1] : 0;
+
+        // Fill JA matrix with last valid index if row_nnz < maxnz
+        for (; j < ell->MAXNZ; j++) {
+            ell->JA[i][j] = (j > 0) ? ell->JA[i][j-1] : 0;
         }
     }
 
-    return A;
+    return ell;
+}
+
+ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int iEnd) {
+    if (!csr) {
+        errno = EINVAL;
+        fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - CSR matrix not initialized\n", strerror(errno));
+
+        return NULL;
+    }
+
+    if (iStart >= iEnd) {
+        errno = EINVAL;
+        fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - Invalid row index, iStart > iEnd\n", strerror(errno));
+
+        return NULL;
+    }
+
+    if (iStart >= csr->M) {
+        errno = EINVAL;
+        fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - Invalid row index, iStart >= csr->M\n", strerror(errno));
+
+        return NULL;
+    }
+
+    if (iEnd > csr->M)
+        iEnd = csr->M;
+
+    ELLPACKMatrix *ell = malloc(sizeof(ELLPACKMatrix));
+    if(!ell) {
+        errno = ENOMEM;
+        fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - Problem allocating \"ELLPACKMatrix\"\n", strerror(errno));
+
+        return NULL;
+    }
+
+    ell->M = iEnd - iStart;
+    ell->N = csr->N;
+
+    // Find max nz into rows
+    ell->MAXNZ = 0;
+    MatT row_nnz = 0;
+    for (int i = iStart; i < iEnd; i++) {
+        row_nnz = csr->IRP[i+1] - csr->IRP[i];
+        if (row_nnz > ell->MAXNZ) {
+            ell->MAXNZ = row_nnz;
+        }
+    }
+
+    if (row_nnz == 0) {
+        printf("Sub-matrix between indexes %d - %d is totally empty\n", iStart, iEnd);
+    }
+
+    /* Allocate memory for JA and AS: */
+    ell->JA = (MatT **) malloc((iEnd - iStart) * sizeof(MatT *));
+    ell->AS = (MatVal **) malloc((iEnd - iStart) * sizeof(MatVal *));
+
+    for (int i = 0; i < ell->M; i++) {
+        ell->JA[i] = (MatT *) calloc(ell->MAXNZ, sizeof(MatT));
+        ell->AS[i] = (MatVal *) calloc(ell->MAXNZ, sizeof(MatVal));
+
+        // Check if there is an error during allocation
+        if (!ell->JA[i] || !ell->AS[i]) {
+            fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - Problem allocating \"JA\" or \"AS\" for \"ELLPACKMatrix\"\n", strerror(errno));
+
+            // Deallocate all previous rows:
+            for (int j = 0; j < i; j++) {
+                free(ell->JA[j]);
+                free(ell->AS[j]);
+            }
+
+            free(ell->JA);
+            free(ell->AS);
+            free(ell);
+
+            return NULL;
+        }
+    }
+
+    // FILL ell->JA and ell->AS
+    for (MatT i = 0; i < ell->M; i++) {
+
+        row_nnz = csr->IRP[(i + iStart) + 1] - csr->IRP[i + iStart];
+        MatT row_start = csr->IRP[i + iStart];
+        MatT j;
+
+        for (j = 0; j < row_nnz; j++) {
+            ell->JA[i][j] = csr->JA[row_start + j];
+            ell->AS[i][j] = csr->AS[row_start + j];
+        }
+
+        // Fill JA matrix with last valid index if row_nnz < maxnz
+        for (; j < ell->MAXNZ; j++) {
+            ell->JA[i][j] = (j > 0) ? ell->JA[i][j-1] : 0;
+        }
+    }
+
+    return ell;
+}
+
+HLLMatrix *convert_to_HLL(CSRMatrix *csr, int hackSize) {
+    return NULL;
 }
