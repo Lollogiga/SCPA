@@ -400,6 +400,7 @@ HLLMatrix *convert_to_HLL(CSRMatrix *csr, int hackSize) {
 
     hllMatrix->hackSize = hackSize;
     hllMatrix->N = csr->N;
+    hllMatrix->M = csr->M;
 
     //Compute number of blocks:
     hllMatrix->numBlocks = (csr->M + hackSize - 1) / hackSize; //Rounding up

@@ -149,6 +149,7 @@ typedef struct {
     MatT numBlocks;         /**< Total number of block for matrix */
     int hackSize;           /**< Size (Number of rows) of each block */
     MatT N;                 /**< Total number of columns in the matrix*/
+    MatT M;;                /**< Total number of row*/
     ELLPACKMatrix **blocks; /**< List of block */
 } HLLMatrix;
 
