@@ -20,4 +20,6 @@ add_executable(
 
         src/preprocessing/matrixPreProcessing.c
         src/include/matrixPreProcessing.h
+        src/product/serialProduct.c
+        src/include/serialProduct.h
 )

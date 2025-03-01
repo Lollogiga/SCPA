@@ -5,6 +5,7 @@
 #include "./include/matrixPreProcessing.h"
 #include "./include/matricDealloc.h"
 #include "./include/matrixPrint.h"
+#include "./include/serialProduct.h"
 
 // TODO: Gestire l'apertura di diversi file
 int main(void) {
@@ -44,6 +45,12 @@ int main(void) {
         perror("Error convert_to_HLL\n");
     }
 
+    MatVal *product = csr_serialProduct(csrMatrix);
+    if (product == NULL) {
+        perror("Error csr_SerialProduct\n");
+    }
+
+
     // Print for debugging:
     printf("\nMatrix: \n");
     print_matrix_data_verbose(rawMatrixData,false);
@@ -51,12 +58,14 @@ int main(void) {
     printf("\nCSR Matrix: \n");
     print_csr_matrix_verbose(csrMatrix, false);
 
+
     printf("\nELLPACK Matrix: \n");
     print_ellpack_matrix_verbose(ellpackMatrix, false);
 
-    // Convert in ELLPACK format:
+
     printf("\nELLPACK Matrix reduced: \n");
     print_ellpack_matrix_verbose(subEllpackMatrix, false);
+
 
     //Free memory:
     free_MatrixData(rawMatrixData);
@@ -64,7 +73,7 @@ int main(void) {
     free_ELLPACKMatrix(ellpackMatrix);
     free_ELLPACKMatrix(subEllpackMatrix);
     free_HLLMatrix(hllMatrix);
-
+    free(product);
     return 0;
 }
 
