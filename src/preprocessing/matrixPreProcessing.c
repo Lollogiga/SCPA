@@ -174,74 +174,6 @@ CSRMatrix *convert_to_CSR(MatrixData *rawMatrixData) {
     return csrMatrix;
 }
 
-/*CSRMatrix *extractCSRBlock(CSRMatrix *csr, MatT start, MatT end) {
-
-    CSRMatrix *csrBlock = malloc(sizeof(CSRMatrix));
-    if (!csrBlock) {
-        perror("Memory allocation error");
-        return NULL;
-    }
-
-    csrBlock->M = end - start;
-    csrBlock->N = csr->N;
-
-    // Il numero di elementi non zero per il nuovo blocco
-    csrBlock->NZ = csr->IRP[end] - csr->IRP[start];
-
-    // Allocazione memoria
-    csrBlock->IRP = (MatT *)malloc((csrBlock->M + 1) * sizeof(MatT));
-    csrBlock->JA = (MatT *)malloc(csrBlock->NZ * sizeof(MatT));
-    csrBlock->AS = (MatVal *)malloc(csrBlock->NZ * sizeof(MatVal));
-
-    // Copia il vettore IRP, traslando gli indici
-    MatT baseIndex = csr->IRP[start];
-    for (MatT i = 0; i <= csrBlock->M; i++) {
-        csrBlock->IRP[i] = csr->IRP[start + i] - baseIndex;
-    }
-
-    // Copia JA e AS
-    for (MatT i = 0; i < csrBlock->NZ; i++) {
-        csrBlock->JA[i] = csr->JA[baseIndex + i];
-        csrBlock->AS[i] = csr->AS[baseIndex + i];
-    }
-
-    return csrBlock;
-}*/
-
-/*HLLMatrix *convert_to_HLL(CSRMatrix *csrMatrix, int hackSize) {
-    HLLMatrix *hllMatrix = (HLLMatrix *) malloc(sizeof(HLLMatrix));
-    if (!hllMatrix) {
-        perror("Memory allocation error");
-        return NULL;
-    }
-
-    hllMatrix->hackSize = hackSize;
-    hllMatrix->N = csrMatrix->N;
-
-    //Compute number of blocks:
-    hllMatrix->numBlocks = (csrMatrix->M + hackSize - 1) / hackSize; //Rounding up
-
-    //Allocate memory:
-    hllMatrix->blocks = (ELLPACKMatrix **)malloc(hllMatrix->numBlocks * sizeof(ELLPACKMatrix*));
-
-    //Manage each block:
-    for (MatT i = 0; i < hllMatrix->numBlocks; i++) {
-        //Define start and end point
-        MatT row_start = i*hllMatrix->hackSize;
-        MatT row_end = (row_start + hllMatrix->hackSize > csrMatrix->M) ? csrMatrix->M : row_start + hllMatrix->hackSize;
-
-        CSRMatrix *csrBlock = extractCSRBlock(csrMatrix, row_start, row_end);
-        if (!csrBlock) {
-            perror("Memory allocation error");
-            return NULL;
-        }
-        hllMatrix->blocks[i] = convert_to_ELLPACK(csrBlock);
-        free_CSRMatrix(csrBlock);
-    }
-
-    return hllMatrix;
-}*/
-
 ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csr) {
     if (!csr) {
         errno = EINVAL;
@@ -319,7 +251,7 @@ ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csr) {
     return ell;
 }
 
-ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int iEnd) {
+ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, MatT iStart, MatT iEnd) {
     if (!csr) {
         errno = EINVAL;
         fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - CSR matrix not initialized\n", strerror(errno));
@@ -358,7 +290,7 @@ ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int i
     // Find max nz into rows
     ell->MAXNZ = 0;
     MatT row_nnz = 0;
-    for (int i = iStart; i < iEnd; i++) {
+    for (MatT i = iStart; i < iEnd; i++) {
         row_nnz = csr->IRP[i+1] - csr->IRP[i];
         if (row_nnz > ell->MAXNZ) {
             ell->MAXNZ = row_nnz;
@@ -372,14 +304,24 @@ ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int i
     /* Allocate memory for JA and AS: */
     ell->JA = (MatT **) malloc((iEnd - iStart) * sizeof(MatT *));
     ell->AS = (MatVal **) malloc((iEnd - iStart) * sizeof(MatVal *));
+    if (!ell->JA || !ell->AS) {
+        fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - Problem allocating arrays \"JA\" or \"AS\" for \"ELLPACKMatrix\"\n", strerror(errno));
 
-    for (int i = 0; i < ell->M; i++) {
+        if (ell->JA) free(ell->JA);
+        if (ell->AS) free(ell->AS);
+
+        free(ell);
+
+        return NULL;
+    }
+
+    for (MatT i = 0; i < ell->M; i++) {
         ell->JA[i] = (MatT *) calloc(ell->MAXNZ, sizeof(MatT));
         ell->AS[i] = (MatVal *) calloc(ell->MAXNZ, sizeof(MatVal));
 
         // Check if there is an error during allocation
         if (!ell->JA[i] || !ell->AS[i]) {
-            fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - Problem allocating \"JA\" or \"AS\" for \"ELLPACKMatrix\"\n", strerror(errno));
+            fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - Problem allocating inner \"JA\" or \"AS\" for \"ELLPACKMatrix\"\n", strerror(errno));
 
             // Deallocate all previous rows:
             for (int j = 0; j < i; j++) {
@@ -387,8 +329,12 @@ ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int i
                 free(ell->AS[j]);
             }
 
+            if (ell->JA[i]) free(ell->JA[i]);
+            if (ell->AS[i]) free(ell->AS[i]);
+
             free(ell->JA);
             free(ell->AS);
+
             free(ell);
 
             return NULL;
@@ -417,5 +363,54 @@ ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int i
 }
 
 HLLMatrix *convert_to_HLL(CSRMatrix *csr, int hackSize) {
-    return NULL;
+    if (!csr) {
+        errno = EINVAL;
+        fprintf(stderr, "convert_to_HLL: Error: %s - CSRMatrix input is invalid\n", strerror(errno));
+
+        return NULL;
+    }
+
+    HLLMatrix *hllMatrix = malloc(sizeof(HLLMatrix));
+    if (!hllMatrix) {
+        perror("Memory allocation error");
+        return NULL;
+    }
+
+    hllMatrix->hackSize = hackSize;
+    hllMatrix->N = csr->N;
+
+    //Compute number of blocks:
+    hllMatrix->numBlocks = (csr->M + hackSize - 1) / hackSize; //Rounding up
+
+    //Allocate memory:
+    hllMatrix->blocks = (ELLPACKMatrix **)malloc(hllMatrix->numBlocks * sizeof(ELLPACKMatrix*));
+    if (!hllMatrix->blocks) {
+        perror("Memory allocation error");
+
+        free(hllMatrix); // Free the allocated hllMatrix as well
+
+        return NULL;
+    }
+
+    //Manage each block:
+    for (MatT i = 0; i < hllMatrix->numBlocks; i++) {
+        //Define start and end point
+        MatT row_start = i * hllMatrix->hackSize;
+        MatT row_end = (row_start + hllMatrix->hackSize > csr->M) ? csr->M : row_start + hllMatrix->hackSize;
+
+        // Leak of memory allocated in function 'convert_to_ELLPACK_parametrized'
+        hllMatrix->blocks[i] = convert_to_ELLPACK_parametrized(csr, row_start, row_end);
+        if (!hllMatrix->blocks[i]) {
+            perror("Memory allocation error");
+
+            for (MatT j = 0; j < i; j++) free(hllMatrix->blocks[j]);
+
+            free(hllMatrix->blocks);
+            free(hllMatrix);
+
+            return NULL;
+        }
+    }
+
+    return hllMatrix;
 }
