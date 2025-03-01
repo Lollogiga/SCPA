@@ -24,10 +24,30 @@ int main(void) {
     }
 
     // Convert in CSR format:
-    CSRMatrix *csrMatrix = convert_to_CSR(rawMatrixData );
+    CSRMatrix *csrMatrix = convert_to_CSR(rawMatrixData);
+    if (csrMatrix == NULL) {
+        perror("Error convert_to_CSR\n");
+        exit(-1);
+    }
 
     // Convert in ELLPACK format:
     ELLPACKMatrix *ellpackMatrix = convert_to_ELLPACK(csrMatrix);
+    if (ellpackMatrix == NULL) {
+        perror("Error convert_to_ELLPACK\n");
+        exit(-1);
+    }
+
+    ELLPACKMatrix *subEllpackMatrix = convert_to_ELLPACK_parametrized(csrMatrix, 0, 2);
+    if (subEllpackMatrix == NULL) {
+        perror("Error convert_to_ELLPACK_parametrized\n");
+        exit(-1);
+    }
+
+    HLLMatrix *hllMatrix = convert_to_HLL(csrMatrix, 2);
+    if (hllMatrix == NULL) {
+        perror("Error convert_to_HLL\n");
+        exit(-1);
+    }
 
     // Print for debugging:
     printf("\nMatrix: \n");
@@ -40,14 +60,15 @@ int main(void) {
     print_ellpack_matrix_verbose(ellpackMatrix, false);
 
     // Convert in ELLPACK format:
-    ellpackMatrix = convert_to_ELLPACK_parametrized(csrMatrix, 2, 2);
     printf("\nELLPACK Matrix reduced: \n");
-    print_ellpack_matrix_verbose(ellpackMatrix, false);
+    print_ellpack_matrix_verbose(subEllpackMatrix, false);
 
     //Free memory:
     free_MatrixData(rawMatrixData);
     free_CSRMatrix(csrMatrix);
     free_ELLPACKMatrix(ellpackMatrix);
+    free_ELLPACKMatrix(subEllpackMatrix);
+    free_HLLMatrix(hllMatrix);
 
     return 0;
 }

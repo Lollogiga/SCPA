@@ -11,5 +11,6 @@
 void free_MatrixData(MatrixData *matrix);
 void free_CSRMatrix(CSRMatrix *csr);
 void free_ELLPACKMatrix(ELLPACKMatrix *ell);
+void free_HLLMatrix(HLLMatrix *hll);
 
 #endif //MATRICDEALLOC_H

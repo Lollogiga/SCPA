@@ -47,3 +47,15 @@ void free_ELLPACKMatrix(ELLPACKMatrix *ell) {
 
     free(ell);
 }
+
+void free_HLLMatrix(HLLMatrix *hll) {
+    if (!hll) return;
+
+    if (!hll->blocks) return;
+
+    for (int i = 0; i < hll->numBlocks; i++)
+        if (hll->blocks[i]) free(hll->blocks[i]);
+
+    free(hll->blocks);
+    free(hll);
+}

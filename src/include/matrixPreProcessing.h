@@ -45,7 +45,7 @@ typedef struct {
 
     MatT *I;      /**< Array of row indices for nonzero elements (size: NZ) */
     MatT *J;      /**< Array of column indices for nonzero elements (size: NZ) */
-    MatVal *val; /**< Array of nonzero values in the matrix (size: NZ) */
+    MatVal *val;  /**< Array of nonzero values in the matrix (size: NZ) */
 } MatrixData;
 
 /**
@@ -149,7 +149,7 @@ typedef struct {
     MatT numBlocks;         /**< Total number of block for matrix */
     int hackSize;           /**< Size (Number of rows) of each block */
     MatT N;                 /**< Total number of columns in the matrix*/
-    ELLPACKMatrix *blocks;  /**< List of block */
+    ELLPACKMatrix **blocks; /**< List of block */
 } HLLMatrix;
 
 MatrixData *read_matrix(FILE *f);
