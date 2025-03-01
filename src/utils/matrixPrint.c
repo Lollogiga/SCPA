@@ -6,12 +6,16 @@
 #include "../include/constants.h"
 
 void print_matrix_data(MatrixData *matrix) {
+    if (!matrix) return;
+
     for (MatT i=0; i<matrix->NZ; i++) {
         printf("A[%d][%d] = %f\n", matrix->I[i], matrix->J[i], matrix->val[i]);
     }
 }
 
 void print_matrix_data_verbose(MatrixData *matrix, bool verbose) {
+    if (!matrix) return;
+
     printf("M = %d, N = %d, NZ = %d\n", matrix->M, matrix-> N, matrix-> NZ);
 
     const int max_print_nz = (matrix->NZ < MAX_PRINT_COLUMN) ? matrix->NZ : MAX_PRINT_COLUMN;
@@ -40,6 +44,7 @@ void print_matrix_data_verbose(MatrixData *matrix, bool verbose) {
 }
 
 void print_csr_matrix(CSRMatrix *csr) {
+    if (!csr) return;
 
     for (MatT i = 0; i <= csr->M; i++) {
         printf("IRP[%d] = %d\n", i, csr->IRP[i]);
@@ -55,6 +60,8 @@ void print_csr_matrix(CSRMatrix *csr) {
 }
 
 void print_csr_matrix_verbose(CSRMatrix *csr, bool verbose) {
+    if (!csr) return;
+
     printf("M = %d, N = %d, NZ = %d\n", csr->M, csr-> N, csr-> NZ);
 
     const int max_print_cols_IRP = (csr->M < MAX_PRINT_ROW) ? csr->M : MAX_PRINT_ROW;
@@ -84,6 +91,8 @@ void print_csr_matrix_verbose(CSRMatrix *csr, bool verbose) {
 }
 
 void print_ellpack_matrix(ELLPACKMatrix *ell) {
+    if (!ell) return;
+
     for (MatT i = 0; i < ell->M; i++) {
         for (MatT j = 0; j < ell->MAXNZ; j++) {
             printf("JA[%d][%d] = %d\n", i, j, ell->JA[i][j]);
@@ -98,6 +107,8 @@ void print_ellpack_matrix(ELLPACKMatrix *ell) {
 }
 
 void print_ellpack_matrix_verbose(ELLPACKMatrix *ell, bool verbose) {
+    if (!ell) return;
+
     printf("M = %d, N = %d, MAXNZ = %d\n", ell->M, ell->N, ell->MAXNZ);
 
     const int max_print_rows = (ell->M < MAX_PRINT_ROW) ? ell->M : MAX_PRINT_ROW;

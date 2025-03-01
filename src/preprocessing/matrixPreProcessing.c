@@ -32,6 +32,12 @@ MatrixData *read_matrix(FILE *f) {
         return NULL;
     }
 
+    //Check if matrix is symmetric:
+    const char sym = mm_is_symmetric(matcode);
+
+    // Check if matrix has a pattern
+    const char pattern = mm_is_pattern(matcode);
+
     // Find out the size of the sparse matrix (number of rows, columns, and non-zero entries)
     if (mm_read_mtx_crd_size(f, &data->M, &data->N, &data->NZ) != 0) {
         perror("Error reading matrix data\n");
@@ -39,9 +45,6 @@ MatrixData *read_matrix(FILE *f) {
         return NULL;
     }
 
-    //Check if matrix is symmetric:
-    const char sym = mm_is_symmetric(matcode);
-    printf("Matrix is symmetric?: %d\n", sym);
     const MatT nz_alloc = sym ? 2 * data->NZ : data->NZ; //If matrix is sym, the value of NZ is at most double
 
     // Dynamically allocate memory for the sparse matrix's row indices, column indices, and values
@@ -51,9 +54,10 @@ MatrixData *read_matrix(FILE *f) {
 
     if (!data->I || !data->J || !data->val) {
         perror("Memory allocation error");
-        free(data->I);
-        free(data->J);
-        free(data->val);
+        if (data->I) free(data->I);
+        if (data->J) free(data->J);
+        if (data->val) free(data->val);
+
         free(data);
 
         return NULL;
@@ -71,47 +75,65 @@ MatrixData *read_matrix(FILE *f) {
     for (int i = 0; i < data->NZ; i++) {
         /* Retrieve row, col and val from file line */
         char line[MATRIX_FILE_MAX_ROW_LENGTH];  // assuming each line is small enough for this buffer
-        if (fgets(line, sizeof(line), f)) {
-            char *endptr;
 
-            MatT row = strtol(line, &endptr, 10);  // Convert first integer
-            if (*endptr != ' ' && *endptr != '\t') {
-                return NULL;
-            }
+        if (!fgets(line, sizeof(line), f)) {
+            perror("Error reading matrix data\n");
 
-            MatT col = strtol(endptr, &endptr, 10);  // Convert second integer
-            if (*endptr != ' ' && *endptr != '\t') {
-                return NULL;
-            }
+            free(data->I);
+            free(data->J);
+            free(data->val);
 
-            const MatVal val = (MatVal) strtod(endptr, &endptr);  // Convert non-zero value
+            free(data);
+
+            return NULL;
+        }
+
+        char *endptr;
+
+        MatT row = strtol(line, &endptr, 10);  // Convert first integer
+        if (*endptr != ' ' && *endptr != '\t') {
+            return NULL;
+        }
+
+        MatT col = strtol(endptr, &endptr, 10);  // Convert second integer
+        MatVal val = 1L;
+        if (pattern) {
             if (*endptr != '\n' && *endptr != '\0') {
                 return NULL;
             }
-
-            /* Adjust from 1-based to 0-based */
-            row--;
-            col--;
-
-            data->I[index] = row;
-            data->J[index] = col;
-            data->val[index] = val;
-
-            index++;
-
-            //If the matrix is symmetric, and we aren't on diagonal:
-            if (sym && row != col) {
-                data->I[index] = col;
-                data->J[index] = row;
-                data->val[index] = val;
-                index++;
+        } else {
+            if (*endptr != ' ' && *endptr != '\t') {
+                return NULL;
             }
+
+            val = (MatVal) strtod(endptr, &endptr);  // Convert non-zero value
+            if (*endptr != '\n' && *endptr != '\0') {
+                return NULL;
+            }
+        }
+
+        /* Adjust from 1-based to 0-based */
+        row--;
+        col--;
+
+        data->I[index] = row;
+        data->J[index] = col;
+        data->val[index] = val;
+
+        index++;
+
+        //If the matrix is symmetric, and we aren't on diagonal:
+        if (sym && row != col) {
+            data->I[index] = col;
+            data->J[index] = row;
+            data->val[index] = val;
+            index++;
         }
     }
 
     data->NZ = index; //Update the effective number of NZ
 
-    if (f !=stdin) fclose(f);
+    if (f && f != stdin) fclose(f);
 
     return data;
 
@@ -142,9 +164,9 @@ CSRMatrix *convert_to_CSR(MatrixData *rawMatrixData) {
 
     if (!csrMatrix->IRP || !csrMatrix->JA || !csrMatrix->AS) {
         perror("Memory allocation error");
-        free(csrMatrix->IRP);
-        free(csrMatrix->JA);
-        free(csrMatrix->AS);
+        if (csrMatrix->IRP) free(csrMatrix->IRP);
+        if (csrMatrix->JA) free(csrMatrix->JA);
+        if (csrMatrix->AS) free(csrMatrix->AS);
         free(csrMatrix);
 
         return NULL;

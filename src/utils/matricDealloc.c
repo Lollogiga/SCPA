@@ -7,14 +7,14 @@
 #include "../include/matricDealloc.h"
 
 // Functions for deallocation:
-void free_MatrixData(MatrixData *data) {
-    if (!data) return;
+void free_MatrixData(MatrixData *matrix) {
+    if (!matrix) return;
 
-    if (data->I) free(data->I);
-    if (data->J) free(data->J);
-    if (data->val) free(data->val);
+    if (matrix->I) free(matrix->I);
+    if (matrix->J) free(matrix->J);
+    if (matrix->val) free(matrix->val);
 
-    free(data);
+    free(matrix);
 }
 
 void free_CSRMatrix(CSRMatrix *csr) {
