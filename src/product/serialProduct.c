@@ -6,18 +6,16 @@
 #include "../include/utilsProduct.h"
 
 
-ResultVector *csr_serialProduct(CSRMatrix *csr) {
+ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
     if (!csr) {
         perror("csr_serialProduct: csr is NULL");
         return NULL;
     }
 
-    // Create vector for matrix vector multiply:
-    MatT len_vector = csr->N;
-    MatVal *vector = create_vector(len_vector);
     if (!vector) {
-        perror("csr_serialProduct: create_vector");
+        perror("csr_serialProduct: vector is NULL");
         return NULL;
+
     }
 
     //Create result vector:
@@ -40,16 +38,34 @@ ResultVector *csr_serialProduct(CSRMatrix *csr) {
     return result;
 }
 
+MatVal *ellpack_serialProduct(ELLPACKMatrix *ell, const MatVal *vector) {
+    if (!ell) {
+        perror("ellpack_serialProduct: ell is NULL");
+        return NULL;
+    }
 
+    //Create result_vector
+    MatVal *result = calloc(ell->M, sizeof(MatVal));
+    if (!result) {
+        perror("ellpack_serialProduct: malloc");
+        return NULL;
+    }
+    for (MatT i = 0; i < ell->M; i++) {
+        for (MatT j = 0; j < ell->MAXNZ; j++) {
+            MatT col_index = ell->JA[i][j];
+            //Check correctness:
+            result[i] += ell->AS[i][j] * vector[col_index];
+        }
+    }
+    return result;
+}
 
-ResultVector *hll_serialProduct(HLLMatrix *hll) {
+ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
     if(!hll) {
         perror("hll_serialProduct: hll is NULL");
         return NULL;
     }
 
-    //Create vector
-    MatVal *vector = create_vector(hll->N);
     if (!vector) {
         perror("hll_serialProduct: create_vector");
         return NULL;
@@ -63,9 +79,24 @@ ResultVector *hll_serialProduct(HLLMatrix *hll) {
         return NULL;
     }
 
+    MatT offset = 0;
     for (MatT i = 0; i < hll->numBlocks; i++) {
+        ELLPACKMatrix *block = hll->blocks[i];
+        MatVal *partial_result = ellpack_serialProduct(block, vector);
+        if (!partial_result) {
+            perror("hll_serialProduct: ellpack_serialProduct");
+            free(result->val);
+            free(result);
+            return NULL;
+        }
+        //Sum each blocks in the final vector:
+        for (MatT j=0; j < block->N; j++) {
+            result->val[offset+j] += partial_result[j];
+        }
+        offset += block->M;
 
+        free(partial_result);
     }
-
-    free(vector);
+    return result;
 }
+

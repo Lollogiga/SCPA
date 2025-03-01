@@ -8,5 +8,6 @@ typedef struct {
     MatVal *val;
 }ResultVector;
 
-ResultVector *csr_serialProduct(CSRMatrix *csr);
+ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector);
+ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector);
 #endif //SERIALPRODUCT_H

@@ -6,6 +6,7 @@
 #include "./include/matricDealloc.h"
 #include "./include/matrixPrint.h"
 #include "./include/serialProduct.h"
+#include "include/utilsProduct.h"
 
 // TODO: Gestire l'apertura di diversi file
 int main(void) {
@@ -45,11 +46,13 @@ int main(void) {
         perror("Error convert_to_HLL\n");
     }
 
-    ResultVector *product = csr_serialProduct(csrMatrix);
-    if (product == NULL) {
+
+    ResultVector *csr_product = csr_serialProduct(csrMatrix, create_vector(csrMatrix->N));
+    if (csr_product == NULL) {
         perror("Error csr_SerialProduct\n");
     }
 
+    ResultVector *hll_product = hll_serialProduct(hllMatrix, create_vector(hllMatrix->N));
 
     // Print for debugging:
     printf("\nMatrix: \n");
@@ -66,8 +69,11 @@ int main(void) {
     printf("\nELLPACK Matrix reduced: \n");
     print_ellpack_matrix_verbose(subEllpackMatrix, false);
 
-    printf("\nResult vector: \n");
-    print_result_vector(product);
+    printf("\nResult csr vector: \n");
+    print_result_vector(csr_product);
+
+    printf("\nResult hll vector: \n");
+    print_result_vector(hll_product);
 
     //Free memory:
     free_MatrixData(rawMatrixData);
@@ -75,7 +81,7 @@ int main(void) {
     free_ELLPACKMatrix(ellpackMatrix);
     free_ELLPACKMatrix(subEllpackMatrix);
     free_HLLMatrix(hllMatrix);
-    free_ResultVector(product);
+    free_ResultVector(csr_product);
     return 0;
 }
 
