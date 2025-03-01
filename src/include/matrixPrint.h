@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #include "./matrixPreProcessing.h"
+#include "./serialProduct.h"
 
 // Function for debugging:
 void print_matrix_data(MatrixData *matrix);
@@ -19,4 +20,5 @@ void print_csr_matrix_verbose(CSRMatrix *csr, bool verbose);
 void print_ellpack_matrix(ELLPACKMatrix *ell);
 void print_ellpack_matrix_verbose(ELLPACKMatrix *ell, bool verbose);
 
+void print_result_vector(ResultVector *result);
 #endif //MATRIXPRINT_H

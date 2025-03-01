@@ -2,5 +2,11 @@
 #define SERIALPRODUCT_H
 
 #include "../include/matrixPreProcessing.h"
-MatVal *csr_serialProduct(CSRMatrix *csr);
+
+typedef struct {
+    MatT len_vector;
+    MatVal *val;
+}ResultVector;
+
+ResultVector *csr_serialProduct(CSRMatrix *csr);
 #endif //SERIALPRODUCT_H

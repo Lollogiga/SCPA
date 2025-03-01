@@ -58,3 +58,12 @@ void free_HLLMatrix(HLLMatrix *hll) {
     free(hll->blocks);
     free(hll);
 }
+
+void free_ResultVector(ResultVector *rv) {
+    if (!rv) return;
+    if (!rv->val) {
+        free(rv);
+        return;
+    }
+    free(rv->val);
+}

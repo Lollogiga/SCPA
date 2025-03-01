@@ -139,3 +139,15 @@ void print_ellpack_matrix_verbose(ELLPACKMatrix *ell, bool verbose) {
     }
 }
 
+void print_result_vector(ResultVector *result) {
+    if (!result) return;
+
+    printf("[");
+    for (int i = 0; i < result->len_vector; i++) {
+        if (i > 0) {
+            printf(", ");
+        }
+        printf("%f", result->val[i]);
+    }
+    printf("]\n");
+}

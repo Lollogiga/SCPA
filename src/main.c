@@ -45,7 +45,7 @@ int main(void) {
         perror("Error convert_to_HLL\n");
     }
 
-    MatVal *product = csr_serialProduct(csrMatrix);
+    ResultVector *product = csr_serialProduct(csrMatrix);
     if (product == NULL) {
         perror("Error csr_SerialProduct\n");
     }
@@ -66,6 +66,8 @@ int main(void) {
     printf("\nELLPACK Matrix reduced: \n");
     print_ellpack_matrix_verbose(subEllpackMatrix, false);
 
+    printf("\nResult vector: \n");
+    print_result_vector(product);
 
     //Free memory:
     free_MatrixData(rawMatrixData);
@@ -73,7 +75,7 @@ int main(void) {
     free_ELLPACKMatrix(ellpackMatrix);
     free_ELLPACKMatrix(subEllpackMatrix);
     free_HLLMatrix(hllMatrix);
-    free(product);
+    free_ResultVector(product);
     return 0;
 }
 
