@@ -5,7 +5,6 @@
 #include "../include/serialProduct.h"
 #include "../include/utilsProduct.h"
 
-
 ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
     if (!csr) {
         perror("csr_serialProduct: csr is NULL");
@@ -18,12 +17,14 @@ ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
 
     }
 
-    //Create result vector:
+    // Create result vector:
     MatT len_result_vector = csr->M;
     ResultVector *result = create_result_vector(len_result_vector);
     if (!result) {
         perror("csr_serialProduct: create_result_vector");
+
         free(vector);
+
         return NULL;
     }
 
@@ -50,6 +51,7 @@ MatVal *ellpack_serialProduct(ELLPACKMatrix *ell, const MatVal *vector) {
         perror("ellpack_serialProduct: malloc");
         return NULL;
     }
+
     for (MatT i = 0; i < ell->M; i++) {
         for (MatT j = 0; j < ell->MAXNZ; j++) {
             MatT col_index = ell->JA[i][j];

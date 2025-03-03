@@ -142,8 +142,10 @@ void print_ellpack_matrix_verbose(ELLPACKMatrix *ell, bool verbose) {
 void print_result_vector(ResultVector *result) {
     if (!result) return;
 
+    const int max_print_cols = (result->len_vector < MAX_PRINT_ROW) ? result->len_vector : MAX_PRINT_ROW;
+
     printf("[");
-    for (int i = 0; i < result->len_vector; i++) {
+    for (int i = 0; i < max_print_cols; i++) {
         if (i > 0) {
             printf(", ");
         }
