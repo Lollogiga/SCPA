@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "../include/constants.h"
 #include "../include/matrixPreProcessing.h"
@@ -39,27 +40,26 @@ ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
     return result;
 }
 
-MatVal *ellpack_serialProduct(ELLPACKMatrix *ell, const MatVal *vector) {
+void *ellpack_serialProduct(ELLPACKMatrix *ell, const MatVal *vector, MatVal *partial_result) {
     if (!ell) {
         perror("ellpack_serialProduct: ell is NULL");
         return NULL;
     }
 
-    //Create result_vector
-    MatVal *result = calloc(ell->M, sizeof(MatVal));
-    if (!result) {
+    if (!partial_result) {
         perror("ellpack_serialProduct: malloc");
         return NULL;
     }
 
+    memset(partial_result, 0, ell->M * sizeof(MatVal));
     for (MatT i = 0; i < ell->M; i++) {
         for (MatT j = 0; j < ell->MAXNZ; j++) {
             MatT col_index = ell->JA[i][j];
             //Check correctness:
-            result[i] += ell->AS[i][j] * vector[col_index];
+            partial_result[i] += ell->AS[i][j] * vector[col_index];
         }
     }
-    return result;
+    return partial_result;
 }
 
 ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
@@ -82,23 +82,26 @@ ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
     }
 
     MatT offset = 0;
+    MatVal *partial_result = malloc(HACK_SIZE * sizeof(MatVal));
+    if (!partial_result) {
+        perror("hll_serialProduct: malloc");
+        return NULL;
+    }
     for (MatT i = 0; i < hll->numBlocks; i++) {
         ELLPACKMatrix *block = hll->blocks[i];
-        MatVal *partial_result = ellpack_serialProduct(block, vector);
-        if (!partial_result) {
+        void *res = ellpack_serialProduct(block, vector, partial_result);
+        if (!res) {
             perror("hll_serialProduct: ellpack_serialProduct");
-            free(result->val);
-            free(result);
+            free(partial_result);
             return NULL;
         }
         //Sum each blocks in the final vector:
-        for (MatT j=0; j < block->N; j++) {
+        for (MatT j=0; j < block->M; j++) {
             result->val[offset+j] += partial_result[j];
         }
         offset += block->M;
-
-        free(partial_result);
     }
+    free(partial_result);
     return result;
 }
 

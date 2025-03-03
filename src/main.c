@@ -3,12 +3,13 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
+#include <string.h>
 #include "./include/matrixPreProcessing.h"
 #include "./include/matricDealloc.h"
 #include "./include/matrixPrint.h"
 #include "./include/serialProduct.h"
 #include "./include/utilsProduct.h"
+
 
 int checkFolder(char *checkFolder, char **destFolder) {
     struct stat info;
@@ -86,12 +87,12 @@ int computeMatrixFile(char *matrixFile) {
         perror("Error convert_to_ELLPACK\n");
     }
 
-    ELLPACKMatrix *subEllpackMatrix = convert_to_ELLPACK_parametrized(csrMatrix, 0, 2);
+    ELLPACKMatrix *subEllpackMatrix = convert_to_ELLPACK_parametrized(csrMatrix, 0, HACK_SIZE);
     if (subEllpackMatrix == NULL) {
         perror("Error convert_to_ELLPACK_parametrized\n");
     }
 
-    HLLMatrix *hllMatrix = convert_to_HLL(csrMatrix, 2);
+    HLLMatrix *hllMatrix = convert_to_HLL(csrMatrix, HACK_SIZE);;
     if (hllMatrix == NULL) {
         perror("Error convert_to_HLL\n");
     }
@@ -102,7 +103,7 @@ int computeMatrixFile(char *matrixFile) {
         perror("Error csr_SerialProduct\n");
     }
 
-    // ResultVector *hll_product = hll_serialProduct(hllMatrix, create_vector(hllMatrix->N));
+    ResultVector *hll_product = hll_serialProduct(hllMatrix, create_vector(hllMatrix->N));
 
     // Print for debugging:
     printf("\nMatrix: \n");
@@ -117,11 +118,11 @@ int computeMatrixFile(char *matrixFile) {
     printf("\nELLPACK Matrix reduced: \n");
     print_ellpack_matrix_verbose(subEllpackMatrix, false);
 
-    printf("\nResult csr vector: \n");
-    print_result_vector(csr_product);
+    //printf("\nResult csr vector: \n");
+    //print_result_vector(csr_product);
 
-    // printf("\nResult hll vector: \n");
-    // print_result_vector(hll_product);
+    printf("\nResult hll vector: \n");
+    print_result_vector(hll_product);
 
     //Free memory:
     free_MatrixData(rawMatrixData);
@@ -195,7 +196,7 @@ int main(int argc, char *argv[]) {
 #else
     printf("TEST_SINGLE_FILE else\n");
 
-    computeMatrixFile("../matrixTest/cant.mtx");
+    computeMatrixFile("../matrixTest/pat_example.mtx");
 #endif
 
     closedir(dir);

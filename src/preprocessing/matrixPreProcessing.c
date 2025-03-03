@@ -98,10 +98,12 @@ MatrixData *read_matrix(FILE *f) {
         MatT col = strtol(endptr, &endptr, 10);  // Convert second integer
         MatVal val = 1L;
         if (pattern) {
+            while (*endptr == ' ' || *endptr == '\t' || *endptr == '\r') endptr++;
             if (*endptr != '\n' && *endptr != '\0') {
                 return NULL;
             }
         } else {
+            while (*endptr == ' ' || *endptr == '\t' || *endptr == '\r') endptr++;
             if (*endptr != ' ' && *endptr != '\t') {
                 return NULL;
             }
