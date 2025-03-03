@@ -7,6 +7,7 @@ set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
 
 add_definitions(-DTEST)
+add_definitions(-DTEST_SINGLE_FILE)
 
 add_executable(
         SCPA src/main.c

@@ -172,6 +172,7 @@ int main(int argc, char *argv[]) {
 
     printf("Folder path: %s\n", folder);
 
+#ifndef TEST_SINGLE_FILE
     while ((entry = readdir(dir))) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;  // Skip loop iteration
@@ -191,7 +192,13 @@ int main(int argc, char *argv[]) {
 
         free(filePath);
     }
+#else
+    printf("TEST_SINGLE_FILE else\n");
 
+    computeMatrixFile("../matrixTest/cant.mtx");
+#endif
+
+    closedir(dir);
     free(folder);
 
     return 0;
