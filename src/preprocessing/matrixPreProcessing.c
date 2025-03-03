@@ -135,7 +135,6 @@ MatrixData *read_matrix(FILE *f) {
 
     data->NZ = index; //Update the effective number of NZ
 
-    if (f && f != stdin) fclose(f);
 
     return data;
 

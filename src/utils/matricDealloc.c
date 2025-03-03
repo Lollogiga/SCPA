@@ -66,4 +66,5 @@ void free_ResultVector(ResultVector *rv) {
         return;
     }
     free(rv->val);
+    free(rv);
 }

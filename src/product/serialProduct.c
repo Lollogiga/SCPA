@@ -23,20 +23,16 @@ ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
     ResultVector *result = create_result_vector(len_result_vector);
     if (!result) {
         perror("csr_serialProduct: create_result_vector");
-
-        free(vector);
-
         return NULL;
     }
 
-    for (MatT i = 0; i <= csr->M; i++) {
+    for (MatT i = 0; i < csr->M; i++) {
         for (MatT j = csr->IRP[i]; j < csr->IRP[i+1]; j++) {
             MatT vector_index = csr->JA[j];
             result->val[i] += csr->AS[j] * vector[vector_index];
         }
     }
 
-    free(vector);
     return result;
 }
 
@@ -77,7 +73,6 @@ ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
     ResultVector *result = create_result_vector(hll->M);
     if (!result) {
         perror("hll_serialProduct: create_result_vector");
-        free(vector);
         return NULL;
     }
 
@@ -85,6 +80,7 @@ ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
     MatVal *partial_result = malloc(HACK_SIZE * sizeof(MatVal));
     if (!partial_result) {
         perror("hll_serialProduct: malloc");
+        free(result);
         return NULL;
     }
     for (MatT i = 0; i < hll->numBlocks; i++) {
@@ -92,6 +88,7 @@ ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
         void *res = ellpack_serialProduct(block, vector, partial_result);
         if (!res) {
             perror("hll_serialProduct: ellpack_serialProduct");
+            free(result);
             free(partial_result);
             return NULL;
         }

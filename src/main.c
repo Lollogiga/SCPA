@@ -97,13 +97,23 @@ int computeMatrixFile(char *matrixFile) {
         perror("Error convert_to_HLL\n");
     }
 
-
-    ResultVector *csr_product = csr_serialProduct(csrMatrix, create_vector(csrMatrix->N));
+    MatVal *csr_vector = create_vector(csrMatrix->N);
+    if (csr_vector == NULL) {
+        perror("Error create_vector\n");
+    }
+    ResultVector *csr_product = csr_serialProduct(csrMatrix, csr_vector);
     if (csr_product == NULL) {
         perror("Error csr_SerialProduct\n");
     }
 
-    ResultVector *hll_product = hll_serialProduct(hllMatrix, create_vector(hllMatrix->N));
+    MatVal *hll_vector = create_vector(ellpackMatrix->N);
+    if (hll_vector == NULL) {
+        perror("Error create_vector\n");
+    }
+    ResultVector *hll_product = hll_serialProduct(hllMatrix, hll_vector);
+    if (hll_product == NULL) {
+        perror("Error hll_serialProduct\n");
+    }
 
     // Print for debugging:
     printf("\nMatrix: \n");
@@ -118,21 +128,27 @@ int computeMatrixFile(char *matrixFile) {
     printf("\nELLPACK Matrix reduced: \n");
     print_ellpack_matrix_verbose(subEllpackMatrix, false);
 
-    //printf("\nResult csr vector: \n");
-    //print_result_vector(csr_product);
+    printf("\nResult csr vector: \n");
+    print_result_vector(csr_product);
 
     printf("\nResult hll vector: \n");
     print_result_vector(hll_product);
 
     //Free memory:
     free_MatrixData(rawMatrixData);
+
     free_CSRMatrix(csrMatrix);
     free_ELLPACKMatrix(ellpackMatrix);
     free_ELLPACKMatrix(subEllpackMatrix);
     free_HLLMatrix(hllMatrix);
-    free_ResultVector(csr_product);
 
-    fclose(f);
+    free_ResultVector(csr_product);
+    free_ResultVector(hll_product);
+
+    free(csr_vector);
+    free(hll_vector);
+
+    if (f && f != stdin) fclose(f);
 
     return 0;
 }
