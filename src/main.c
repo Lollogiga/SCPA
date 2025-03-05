@@ -1,68 +1,23 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <string.h>
+
+#include "./include/fileUtils.h"
 #include "./include/matrixPreProcessing.h"
-#include "./include/matricDealloc.h"
+#include "./include/matricFree.h"
 #include "./include/matrixPrint.h"
 #include "./include/serialProduct.h"
 #include "./include/utilsProduct.h"
 
-
-int checkFolder(char *checkFolder, char **destFolder) {
-    struct stat info;
-
-    if (checkFolder && stat(checkFolder, &info) == 0 && S_ISDIR(info.st_mode)) {
-        char *folder = malloc(strlen(checkFolder) + 1);
-        if (!folder) {
-            perror("checkFolder: error allocating space to forder path");
-            return -1;
-        }
-
-        strcpy(folder, checkFolder);
-
-        *destFolder = folder;
-
-        return 0;
-    }
-
-#ifdef TEST
-    if (stat(MATRIX_TEST_FOLDER_DEFAULT, &info) == 0 && (info.st_mode & S_IFDIR)) {
-        char *folder = malloc(strlen(MATRIX_TEST_FOLDER_DEFAULT) + 1);
-        if (!folder) {
-            perror("checkFolder: error allocating space to forder path");
-            return -1;
-        }
-
-        strcpy(folder, MATRIX_TEST_FOLDER_DEFAULT);
-
-        *destFolder = folder;
-
-        return 0;
-    }
-#endif
-
-    if (stat(MATRIX_FOLDER_DEFAULT, &info) == 0 && (info.st_mode & S_IFDIR)) {
-        char *folder = malloc(strlen(MATRIX_FOLDER_DEFAULT) + 1);
-        if (!folder) {
-            perror("checkFolder: error allocating space to forder path");
-            return -1;
-        }
-
-        strcpy(folder, MATRIX_FOLDER_DEFAULT);
-
-        *destFolder = folder;
-
-        return 0;
-    }
-
-    return 1;
-}
+// TEST, to remove this include
+#include <omp.h>
 
 int computeMatrixFile(char *matrixFile) {
     FILE *f;
+
     // Open Matrix Market file
     if ((f = fopen(matrixFile, "r")) == NULL) {
         perror("Error opening file\n");
@@ -92,6 +47,7 @@ int computeMatrixFile(char *matrixFile) {
         perror("Error convert_to_ELLPACK_parametrized\n");
     }
 
+    // Convert to HLL format:
     HLLMatrix *hllMatrix = convert_to_HLL(csrMatrix, HACK_SIZE);;
     if (hllMatrix == NULL) {
         perror("Error convert_to_HLL\n");
@@ -101,6 +57,7 @@ int computeMatrixFile(char *matrixFile) {
     if (csr_vector == NULL) {
         perror("Error create_vector\n");
     }
+
     ResultVector *csr_product = csr_serialProduct(csrMatrix, csr_vector);
     if (csr_product == NULL) {
         perror("Error csr_SerialProduct\n");
@@ -110,6 +67,7 @@ int computeMatrixFile(char *matrixFile) {
     if (hll_vector == NULL) {
         perror("Error create_vector\n");
     }
+
     ResultVector *hll_product = hll_serialProduct(hllMatrix, hll_vector);
     if (hll_product == NULL) {
         perror("Error hll_serialProduct\n");
@@ -179,9 +137,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    struct dirent *entry;
     DIR *dir = opendir(folder);
-
     if (dir == NULL) {
         perror("Error opening folder");
         return -1;
@@ -217,6 +173,14 @@ int main(int argc, char *argv[]) {
 
     closedir(dir);
     free(folder);
+
+    // TEST OpenMP
+    omp_set_num_threads(4); // Imposta 4 thread
+
+    #pragma omp parallel
+    {
+        printf("Thread %d di %d\n", omp_get_thread_num(), omp_get_num_threads());
+    }
 
     return 0;
 }

@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#include "../include/matricDealloc.h"
+#include "../include/matricFree.h"
 
 // Functions for deallocation:
 void free_MatrixData(MatrixData *matrix) {

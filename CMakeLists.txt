@@ -15,8 +15,8 @@ add_executable(
         src/preprocessing/mmio.c
         src/include/mmio.h
 
-        src/utils/matricDealloc.c
-        src/include/matricDealloc.h
+        src/utils/matricFree.c
+        src/include/matricFree.h
 
         src/utils/matrixPrint.c
         src/include/matrixPrint.h
@@ -27,4 +27,14 @@ add_executable(
         src/include/serialProduct.h
         src/product/utilsProduct.c
         src/include/utilsProduct.h
+        src/utils/fileUtils.c
+        src/include/fileUtils.h
 )
+
+# Abilita OpenMP
+find_package(OpenMP REQUIRED)
+
+if(OpenMP_C_FOUND)
+    target_link_libraries(SCPA PUBLIC OpenMP::OpenMP_C)
+    target_compile_options(SCPA PRIVATE ${OpenMP_C_FLAGS})
+endif()
