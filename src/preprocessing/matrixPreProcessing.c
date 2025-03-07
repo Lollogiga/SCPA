@@ -104,9 +104,6 @@ MatrixData *read_matrix(FILE *f) {
             }
         } else {
             while (*endptr == ' ' || *endptr == '\t' || *endptr == '\r') endptr++;
-            if (*endptr != ' ' && *endptr != '\t') {
-                return NULL;
-            }
 
             val = (MatVal) strtod(endptr, &endptr);  // Convert non-zero value
             if (*endptr != '\n' && *endptr != '\0') {

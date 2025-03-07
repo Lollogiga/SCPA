@@ -1,4 +1,5 @@
 #include <dirent.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,10 +11,8 @@
 #include "./include/matricFree.h"
 #include "./include/matrixPrint.h"
 #include "./include/serialProduct.h"
-#include "./include/utilsProduct.h"
-
-// TEST, to remove this include
-#include <omp.h>
+#include "./include/createVectorUtil.h"
+#include "./include/openmpProduct.h"
 
 int computeMatrixFile(char *matrixFile) {
     FILE *f;
@@ -58,10 +57,28 @@ int computeMatrixFile(char *matrixFile) {
         perror("Error create_vector\n");
     }
 
+    double start = omp_get_wtime();
     ResultVector *csr_product = csr_serialProduct(csrMatrix, csr_vector);
     if (csr_product == NULL) {
         perror("Error csr_SerialProduct\n");
     }
+    double end = omp_get_wtime();
+    printf("csr_serial: Elapsed time = %lf\n", end - start);
+
+    start = omp_get_wtime();
+    ResultVector *csr_product_openmp1 = csr_openmpProduct_sol1(csrMatrix, csr_vector);
+    end = omp_get_wtime();
+    printf("csr_openmp1: Elapsed time = %lf\n", end - start);
+
+    start = omp_get_wtime();
+    ResultVector *csr_product_openmp2 = csr_openmpProduct_sol2(csrMatrix, csr_vector);
+    end = omp_get_wtime();
+    printf("csr_openmp2: Elapsed time = %lf\n", end - start);
+
+    start = omp_get_wtime();
+    ResultVector *csr_product_openmp3 = csr_openmpProduct_sol3(csrMatrix, csr_vector);
+    end = omp_get_wtime();
+    printf("csr_openmp3: Elapsed time = %lf\n", end - start);
 
     MatVal *hll_vector = create_vector(ellpackMatrix->N);
     if (hll_vector == NULL) {
@@ -73,24 +90,24 @@ int computeMatrixFile(char *matrixFile) {
         perror("Error hll_serialProduct\n");
     }
 
-    // Print for debugging:
-    printf("\nMatrix: \n");
-    print_matrix_data_verbose(rawMatrixData,false);
-
-    printf("\nCSR Matrix: \n");
-    print_csr_matrix_verbose(csrMatrix, false);
-
-    printf("\nELLPACK Matrix: \n");
-    print_ellpack_matrix_verbose(ellpackMatrix, false);
-
-    printf("\nELLPACK Matrix reduced: \n");
-    print_ellpack_matrix_verbose(subEllpackMatrix, false);
-
-    printf("\nResult csr vector: \n");
-    print_result_vector(csr_product);
-
-    printf("\nResult hll vector: \n");
-    print_result_vector(hll_product);
+    /* Print for debugging:*/
+    // printf("\nMatrix: \n");
+    // print_matrix_data_verbose(rawMatrixData,false);
+    //
+    // printf("\nCSR Matrix: \n");
+    // print_csr_matrix_verbose(csrMatrix, false);
+    //
+    // printf("\nELLPACK Matrix: \n");
+    // print_ellpack_matrix_verbose(ellpackMatrix, false);
+    //
+    // printf("\nELLPACK Matrix reduced: \n");
+    // print_ellpack_matrix_verbose(subEllpackMatrix, false);
+    //
+    // printf("\nResult csr vector: \n");
+    // print_result_vector(csr_product);
+    //
+    // printf("\nResult hll vector: \n");
+    // print_result_vector(hll_product);
 
     //Free memory:
     free_MatrixData(rawMatrixData);
@@ -166,21 +183,13 @@ int main(int argc, char *argv[]) {
         free(filePath);
     }
 #else
-    printf("TEST_SINGLE_FILE else\n");
+    printf("TEST_SINGLE_FILE else\n\n");
 
-    computeMatrixFile("../matrixTest/pat_example.mtx");
+    computeMatrixFile("../matrixTest/cant.mtx");
 #endif
 
     closedir(dir);
     free(folder);
-
-    // TEST OpenMP
-    omp_set_num_threads(4); // Imposta 4 thread
-
-    #pragma omp parallel
-    {
-        printf("Thread %d di %d\n", omp_get_thread_num(), omp_get_num_threads());
-    }
 
     return 0;
 }

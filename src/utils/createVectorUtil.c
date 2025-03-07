@@ -1,4 +1,4 @@
-#include "../include/utilsProduct.h"
+#include "../include/createVectorUtil.h"
 #include <stdlib.h>
 
 MatVal *create_vector(MatT len_vector) {

@@ -4,7 +4,7 @@
 #include "../include/constants.h"
 #include "../include/matrixPreProcessing.h"
 #include "../include/serialProduct.h"
-#include "../include/utilsProduct.h"
+#include "../include/createVectorUtil.h"
 
 ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
     if (!csr) {
@@ -15,7 +15,6 @@ ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
     if (!vector) {
         perror("csr_serialProduct: vector is NULL");
         return NULL;
-
     }
 
     // Create result vector:

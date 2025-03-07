@@ -23,12 +23,18 @@ add_executable(
 
         src/preprocessing/matrixPreProcessing.c
         src/include/matrixPreProcessing.h
+
         src/product/serialProduct.c
         src/include/serialProduct.h
-        src/product/utilsProduct.c
-        src/include/utilsProduct.h
+
+        src/utils/createVectorUtil.c
+        src/include/createVectorUtil.h
+
         src/utils/fileUtils.c
         src/include/fileUtils.h
+
+        src/product/openmpProduct.c
+        src/include/openmpProduct.h
 )
 
 # Abilita OpenMP
