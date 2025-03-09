@@ -122,3 +122,39 @@ ResultVector *csr_openmpProduct_sol3(CSRMatrix *csr, MatVal *vector) {
 
     return result;
 }
+
+ResultVector *csr_openmpProduct_sol4(CSRMatrix *csr, MatVal *vector) {
+    if (!csr) {
+        perror("csr_serialProduct: csr is NULL");
+        return NULL;
+    }
+
+    if (!vector) {
+        perror("csr_serialProduct: vector is NULL");
+        return NULL;
+    }
+
+    // Create result vector:
+    MatT len_result_vector = csr->M;
+    ResultVector *result = create_result_vector(len_result_vector);
+    if (!result) {
+        perror("csr_serialProduct: create_result_vector");
+        return NULL;
+    }
+
+    // omp_set_num_threads(1);
+
+#pragma omp parallel for schedule(auto)
+    for (MatT i = 0; i < csr->M; i++) {
+        MatVal sum = 0.0;
+#pragma omp simd reduction(+:sum)
+        for (MatT j = csr->IRP[i]; j < csr->IRP[i+1]; j++) {
+            sum += csr->AS[j] * vector[csr->JA[j]];
+        }
+
+        result->val[i] = sum;
+    }
+
+    return result;
+}
+
