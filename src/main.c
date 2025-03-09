@@ -92,6 +92,57 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     return 0;
 }
 
+int hll_product(HLLMatrix *matrix, MatVal *vector) {
+    double mean_time = 0, start =0, end = 0;
+
+    for (int i=0; i<100; i++) {
+        start = omp_get_wtime();
+        ResultVector *hll_product = hll_serialProduct(matrix, vector);
+        if (hll_product == NULL) {
+            perror("Error csr_SerialProduct\n");
+            return -1;
+        }
+        end = omp_get_wtime();
+        mean_time += (end - start);
+        free_ResultVector(hll_product);
+    }
+
+    printf("hll_serial: Elapsed mean time = %lf\n", mean_time/100);
+
+    mean_time = 0;
+    for (int i=0; i<100; i++) {
+        start = omp_get_wtime();
+        ResultVector *hll_product = hll_openmpProduct_sol1(matrix, vector);
+        if (hll_product == NULL) {
+            perror("Error csr_openmpProduct_sol1\n");
+            return -1;
+        }
+        end = omp_get_wtime();
+        mean_time += (end - start);
+        free_ResultVector(hll_product);
+    }
+
+    printf("hll_openmp1: Elapsed mean time = %lf\n", mean_time/100);
+
+    /*mean_time = 0;
+    for (int i=0; i<100; i++) {
+        start = omp_get_wtime();
+        ResultVector *hll_product = hll_openmpProduct_sol2(matrix, vector);
+        if (hll_product == NULL) {
+            perror("Error csr_openmpProduct_sol2\n");
+            return -1;
+        }
+        end = omp_get_wtime();
+        mean_time += (end - start);
+        free_ResultVector(hll_product);
+    }
+
+    printf("csr_openmp2: Elapsed mean time = %lf\n", mean_time/100);
+    */
+
+    return 0;
+}
+
 int computeMatrixFile(char *matrixFile) {
     FILE *f;
 
@@ -137,14 +188,16 @@ int computeMatrixFile(char *matrixFile) {
 
     csr_product(csrMatrix, csr_vector);
 
-
-
-
-
     MatVal *hll_vector = create_vector(ellpackMatrix->N);
     if (hll_vector == NULL) {
         perror("Error create_vector\n");
     }
+
+    hll_product(hllMatrix, hll_vector);
+
+
+
+
 
     ResultVector *hll_product = hll_serialProduct(hllMatrix, hll_vector);
     if (hll_product == NULL) {
