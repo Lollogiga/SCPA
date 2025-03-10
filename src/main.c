@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "./include/fileUtils.h"
+#include "./include/matrixBalance.h"
 #include "./include/matrixPreProcessing.h"
 #include "./include/matricFree.h"
 #include "./include/matrixPrint.h"
@@ -15,12 +16,11 @@
 #include "./include/openmpCSR.h"
 #include "./include/openmpHLL.h"
 
-
-
 int csr_product(CSRMatrix *matrix, MatVal *vector) {
     ResultVector *csr_product = NULL;
     double start =0, end = 0;
 
+    // Serial solution
     start = omp_get_wtime();
     csr_product = csr_serialProduct(matrix, vector);
     if (csr_product == NULL) {
@@ -31,6 +31,7 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     free_ResultVector(csr_product);
     printf("csr_serial: Elapsed mean time = %lf\n", end - start);
 
+    // OpenMP solution 1
     start = omp_get_wtime();
     csr_product = csr_openmpProduct_sol1(matrix, vector);
     if (csr_product == NULL) {
@@ -41,6 +42,7 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     free_ResultVector(csr_product);
     printf("csr_openmp1: Elapsed mean time = %lf\n", end - start);
 
+    // OpenMP solution 2
     start = omp_get_wtime();
     csr_product = csr_openmpProduct_sol2(matrix, vector);
     if (csr_product == NULL) {
@@ -51,6 +53,7 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     free_ResultVector(csr_product);
     printf("csr_openmp2: Elapsed mean time = %lf\n", end - start);
 
+    // OpenMP solution 3
     start = omp_get_wtime();
     csr_product = csr_openmpProduct_sol3(matrix, vector);
     if (csr_product == NULL) {
@@ -61,6 +64,7 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     free_ResultVector(csr_product);
     printf("csr_openmp3: Elapsed mean time = %lf\n", end - start);
 
+    // OpenMP solution 4
     start = omp_get_wtime();
     csr_product = csr_openmpProduct_sol4(matrix, vector);
     if (csr_product == NULL) {
@@ -71,6 +75,18 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     free_ResultVector(csr_product);
     printf("csr_openmp4: Elapsed mean time = %lf\n", end - start);
 
+    // OpenMP solution 5
+    ThreadDataRange *tdr = matrixBalanceCSR(matrix, 2);
+    start = omp_get_wtime();
+    csr_product = csr_openmpProduct_sol5(matrix, vector, 2, tdr);
+    if (csr_product == NULL) {
+        perror("Error csr_openmpProduct_sol4\n");
+        return -1;
+    }
+    end = omp_get_wtime();
+    free_ResultVector(csr_product);
+    printf("csr_openmp5: Elapsed mean time = %lf\n", end - start);
+
     return 0;
 }
 
@@ -78,6 +94,7 @@ int hll_product(HLLMatrix *matrix, MatVal *vector) {
     ResultVector *hll_product = NULL;
     double start =0, end = 0;
 
+    // Serial solution
     start = omp_get_wtime();
     hll_product = hll_serialProduct(matrix, vector);
     if (hll_product == NULL) {
@@ -88,6 +105,7 @@ int hll_product(HLLMatrix *matrix, MatVal *vector) {
     free_ResultVector(hll_product);
     printf("hll_serial: Elapsed mean time = %lf\n", end - start);
 
+    // OpenMP solution 1
     start = omp_get_wtime();
     hll_product = hll_openmpProduct_sol1(matrix, vector);
     if (hll_product == NULL) {
@@ -98,21 +116,28 @@ int hll_product(HLLMatrix *matrix, MatVal *vector) {
     free_ResultVector(hll_product);
     printf("hll_openmp1: Elapsed mean time = %lf\n", end - start);
 
-    /*mean_time = 0;
-    for (int i=0; i<100; i++) {
-        start = omp_get_wtime();
-        ResultVector *hll_product = hll_openmpProduct_sol2(matrix, vector);
-        if (hll_product == NULL) {
-            perror("Error csr_openmpProduct_sol2\n");
-            return -1;
-        }
-        end = omp_get_wtime();
-        mean_time += (end - start);
-        free_ResultVector(hll_product);
+    // OpenMP solution 2
+    start = omp_get_wtime();
+    hll_product = hll_openmpProduct_sol2(matrix, vector);
+    if (hll_product == NULL) {
+        perror("Error csr_openmpProduct_sol2\n");
+        return -1;
     }
+    end = omp_get_wtime();
+    free_ResultVector(hll_product);
+    printf("hll_openmp2: Elapsed mean time = %lf\n", end - start);
 
-    printf("csr_openmp2: Elapsed mean time = %lf\n", mean_time/100);
-    */
+    // OpenMP solution 3: added some preprocessing
+    ThreadDataRange *tdr = matrixBalanceHLL(matrix, 2);
+    start = omp_get_wtime();
+    hll_product = hll_openmpProduct_sol3(matrix, vector, 2, tdr);
+    if (hll_product == NULL) {
+        perror("Error csr_openmpProduct_sol2\n");
+        return -1;
+    }
+    end = omp_get_wtime();
+    free_ResultVector(hll_product);
+    printf("hll_openmp3: Elapsed mean time = %lf\n", end - start);
 
     return 0;
 }
@@ -168,10 +193,6 @@ int computeMatrixFile(char *matrixFile) {
     }
 
     hll_product(hllMatrix, hll_vector);
-
-
-
-
 
     ResultVector *hll_product = hll_serialProduct(hllMatrix, hll_vector);
     if (hll_product == NULL) {
@@ -273,8 +294,10 @@ int main(int argc, char *argv[]) {
 #else
     printf("TEST_SINGcsrLE_FILE else\n\n");
 
+    computeMatrixFile("../matrixTest/ns_example.mtx");
     computeMatrixFile("../matrixTest/cant.mtx");
     // computeMatrixFile("../matrix/Cube_Coup_dt0.mtx");
+    // computeMatrixFile("../matrix/ML_Laplace.mtx");
 #endif
 
     closedir(dir);

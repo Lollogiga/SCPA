@@ -38,6 +38,9 @@ add_executable(
 
         src/product/openmpHLL.c
         src/include/openmpHLL.h
+
+        src/utils/matrixBalance.c
+        src/include/matrixBalance.h
 )
 
 # Abilita OpenMP
