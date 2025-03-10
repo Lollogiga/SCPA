@@ -136,12 +136,14 @@ typedef struct {
  * @endcode
  */
 typedef struct {
-    MatT M;      /**< Total number of rows in the matrix */
-    MatT N;      /**< Total number of columns in the matrix */
-    MatT MAXNZ;  /**< Maximum number of nonzero elements per row */
+    MatT startRow;  /**< Global index of the starting row for this block */
 
-    MatT **JA;   /**< 2D array (size: M x MAXNZ) storing column indices of nonzero elements. */
-    MatVal **AS; /**< 2D array (size: M x MAXNZ) storing nonzero values. */
+    MatT M;         /**< Total number of rows in the matrix */
+    MatT N;         /**< Total number of columns in the matrix */
+    MatT MAXNZ;     /**< Maximum number of nonzero elements per row */
+
+    MatT **JA;      /**< 2D array (size: M x MAXNZ) storing column indices of nonzero elements. */
+    MatVal **AS;    /**< 2D array (size: M x MAXNZ) storing nonzero values. */
 } ELLPACKMatrix;
 
 
@@ -149,7 +151,7 @@ typedef struct {
     MatT numBlocks;         /**< Total number of block for matrix */
     int hackSize;           /**< Size (Number of rows) of each block */
     MatT N;                 /**< Total number of columns in the matrix*/
-    MatT M;;                /**< Total number of row*/
+    MatT M;                 /**< Total number of row*/
     ELLPACKMatrix **blocks; /**< List of block */
 } HLLMatrix;
 

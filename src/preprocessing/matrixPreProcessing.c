@@ -307,6 +307,8 @@ ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, MatT iStart, MatT
     ell->M = iEnd - iStart;
     ell->N = csr->N;
 
+    ell->startRow = iStart;
+
     // Find max nz into rows
     ell->MAXNZ = 0;
     MatT row_nnz = 0;
@@ -321,7 +323,7 @@ ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, MatT iStart, MatT
         printf("Sub-matrix between indexes %d - %d is totally empty\n", iStart, iEnd);
     }
 
-    /* Allocate memory for JA and AS: */
+    // Allocate memory for JA and AS:
     ell->JA = (MatT **) malloc((iEnd - iStart) * sizeof(MatT *));
     ell->AS = (MatVal **) malloc((iEnd - iStart) * sizeof(MatVal *));
     if (!ell->JA || !ell->AS) {
@@ -400,10 +402,10 @@ HLLMatrix *convert_to_HLL(CSRMatrix *csr, int hackSize) {
     hllMatrix->N = csr->N;
     hllMatrix->M = csr->M;
 
-    //Compute number of blocks:
+    // Compute number of blocks:
     hllMatrix->numBlocks = (csr->M + hackSize - 1) / hackSize; //Rounding up
 
-    //Allocate memory:
+    // Allocate memory:
     hllMatrix->blocks = (ELLPACKMatrix **)malloc(hllMatrix->numBlocks * sizeof(ELLPACKMatrix*));
     if (!hllMatrix->blocks) {
         perror("Memory allocation error");
@@ -413,9 +415,9 @@ HLLMatrix *convert_to_HLL(CSRMatrix *csr, int hackSize) {
         return NULL;
     }
 
-    //Manage each block:
+    // Manage each block:
     for (MatT i = 0; i < hllMatrix->numBlocks; i++) {
-        //Define start and end point
+        // Define start and end point
         MatT row_start = i * hllMatrix->hackSize;
         MatT row_end = (row_start + hllMatrix->hackSize > csr->M) ? csr->M : row_start + hllMatrix->hackSize;
 

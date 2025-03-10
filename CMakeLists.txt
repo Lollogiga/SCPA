@@ -33,8 +33,11 @@ add_executable(
         src/utils/fileUtils.c
         src/include/fileUtils.h
 
-        src/product/openmpProduct.c
-        src/include/openmpProduct.h
+        src/product/openmpCSR.c
+        src/include/openmpCSR.h
+
+        src/product/openmpHLL.c
+        src/include/openmpHLL.h
 )
 
 # Abilita OpenMP

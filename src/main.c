@@ -12,117 +12,91 @@
 #include "./include/matrixPrint.h"
 #include "./include/serialProduct.h"
 #include "./include/createVectorUtil.h"
-#include "./include/openmpProduct.h"
+#include "./include/openmpCSR.h"
+#include "./include/openmpHLL.h"
+
 
 
 int csr_product(CSRMatrix *matrix, MatVal *vector) {
-    double mean_time = 0, start =0, end = 0;
+    ResultVector *csr_product = NULL;
+    double start =0, end = 0;
 
-    for (int i=0; i<100; i++) {
-        start = omp_get_wtime();
-        ResultVector *csr_product = csr_serialProduct(matrix, vector);
-        if (csr_product == NULL) {
-            perror("Error csr_SerialProduct\n");
-            return -1;
-        }
-        end = omp_get_wtime();
-        mean_time += (end - start);
-        free_ResultVector(csr_product);
+    start = omp_get_wtime();
+    csr_product = csr_serialProduct(matrix, vector);
+    if (csr_product == NULL) {
+        perror("Error csr_SerialProduct\n");
+        return -1;
     }
+    end = omp_get_wtime();
+    free_ResultVector(csr_product);
+    printf("csr_serial: Elapsed mean time = %lf\n", end - start);
 
-    printf("csr_serial: Elapsed mean time = %lf\n", mean_time/100);
-
-    mean_time = 0;
-    for (int i=0; i<100; i++) {
-        start = omp_get_wtime();
-        ResultVector *csr_product = csr_openmpProduct_sol1(matrix, vector);
-        if (csr_product == NULL) {
-            perror("Error csr_openmpProduct_sol1\n");
-            return -1;
-        }
-        end = omp_get_wtime();
-        mean_time += (end - start);
-        free_ResultVector(csr_product);
+    start = omp_get_wtime();
+    csr_product = csr_openmpProduct_sol1(matrix, vector);
+    if (csr_product == NULL) {
+        perror("Error csr_openmpProduct_sol1\n");
+        return -1;
     }
+    end = omp_get_wtime();
+    free_ResultVector(csr_product);
+    printf("csr_openmp1: Elapsed mean time = %lf\n", end - start);
 
-    printf("csr_openmp1: Elapsed mean time = %lf\n", mean_time/100);
-
-    mean_time = 0;
-    for (int i=0; i<100; i++) {
-        start = omp_get_wtime();
-        ResultVector *csr_product = csr_openmpProduct_sol2(matrix, vector);
-        if (csr_product == NULL) {
-            perror("Error csr_openmpProduct_sol2\n");
-            return -1;
-        }
-        end = omp_get_wtime();
-        mean_time += (end - start);
-        free_ResultVector(csr_product);
+    start = omp_get_wtime();
+    csr_product = csr_openmpProduct_sol2(matrix, vector);
+    if (csr_product == NULL) {
+        perror("Error csr_openmpProduct_sol2\n");
+        return -1;
     }
+    end = omp_get_wtime();
+    free_ResultVector(csr_product);
+    printf("csr_openmp2: Elapsed mean time = %lf\n", end - start);
 
-    printf("csr_openmp2: Elapsed mean time = %lf\n", mean_time/100);
-
-    mean_time = 0;
-    for (int i=0; i<100; i++) {
-        start = omp_get_wtime();
-        ResultVector *csr_product = csr_openmpProduct_sol3(matrix, vector);
-        if (csr_product == NULL) {
-            perror("Error csr_openmpProduct_sol3\n");
-            return -1;
-        }
-        end = omp_get_wtime();
-        mean_time += (end - start);
-        free_ResultVector(csr_product);
+    start = omp_get_wtime();
+    csr_product = csr_openmpProduct_sol3(matrix, vector);
+    if (csr_product == NULL) {
+        perror("Error csr_openmpProduct_sol3\n");
+        return -1;
     }
-    printf("csr_openmp3: Elapsed mean time = %lf\n", mean_time/100);
+    end = omp_get_wtime();
+    free_ResultVector(csr_product);
+    printf("csr_openmp3: Elapsed mean time = %lf\n", end - start);
 
-    mean_time = 0;
-    for (int i=0; i<100; i++) {
-        start = omp_get_wtime();
-        ResultVector *csr_product = csr_openmpProduct_sol4(matrix, vector);
-        if (csr_product == NULL) {
-            perror("Error csr_openmpProduct_sol4\n");
-            return -1;
-        }
-        end = omp_get_wtime();
-        mean_time += (end - start);
-        free_ResultVector(csr_product);
+    start = omp_get_wtime();
+    csr_product = csr_openmpProduct_sol4(matrix, vector);
+    if (csr_product == NULL) {
+        perror("Error csr_openmpProduct_sol4\n");
+        return -1;
     }
-    printf("csr_openmp4: Elapsed mean time = %lf\n", mean_time/100);
+    end = omp_get_wtime();
+    free_ResultVector(csr_product);
+    printf("csr_openmp4: Elapsed mean time = %lf\n", end - start);
+
     return 0;
 }
 
 int hll_product(HLLMatrix *matrix, MatVal *vector) {
-    double mean_time = 0, start =0, end = 0;
+    ResultVector *hll_product = NULL;
+    double start =0, end = 0;
 
-    for (int i=0; i<100; i++) {
-        start = omp_get_wtime();
-        ResultVector *hll_product = hll_serialProduct(matrix, vector);
-        if (hll_product == NULL) {
-            perror("Error csr_SerialProduct\n");
-            return -1;
-        }
-        end = omp_get_wtime();
-        mean_time += (end - start);
-        free_ResultVector(hll_product);
+    start = omp_get_wtime();
+    hll_product = hll_serialProduct(matrix, vector);
+    if (hll_product == NULL) {
+        perror("Error csr_SerialProduct\n");
+        return -1;
     }
+    end = omp_get_wtime();
+    free_ResultVector(hll_product);
+    printf("hll_serial: Elapsed mean time = %lf\n", end - start);
 
-    printf("hll_serial: Elapsed mean time = %lf\n", mean_time/100);
-
-    mean_time = 0;
-    for (int i=0; i<100; i++) {
-        start = omp_get_wtime();
-        ResultVector *hll_product = hll_openmpProduct_sol1(matrix, vector);
-        if (hll_product == NULL) {
-            perror("Error csr_openmpProduct_sol1\n");
-            return -1;
-        }
-        end = omp_get_wtime();
-        mean_time += (end - start);
-        free_ResultVector(hll_product);
+    start = omp_get_wtime();
+    hll_product = hll_openmpProduct_sol1(matrix, vector);
+    if (hll_product == NULL) {
+        perror("Error hll_openmpProduct_sol1\n");
+        return -1;
     }
-
-    printf("hll_openmp1: Elapsed mean time = %lf\n", mean_time/100);
+    end = omp_get_wtime();
+    free_ResultVector(hll_product);
+    printf("hll_openmp1: Elapsed mean time = %lf\n", end - start);
 
     /*mean_time = 0;
     for (int i=0; i<100; i++) {
@@ -300,6 +274,7 @@ int main(int argc, char *argv[]) {
     printf("TEST_SINGcsrLE_FILE else\n\n");
 
     computeMatrixFile("../matrixTest/cant.mtx");
+    // computeMatrixFile("../matrix/Cube_Coup_dt0.mtx");
 #endif
 
     closedir(dir);
