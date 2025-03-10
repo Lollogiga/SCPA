@@ -194,6 +194,7 @@ CSRMatrix *convert_to_CSR(MatrixData *rawMatrixData) {
     return csrMatrix;
 }
 
+/** Used to convert a matrix to hll format */
 ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csr) {
     if (!csr) {
         errno = EINVAL;
@@ -271,6 +272,7 @@ ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *csr) {
     return ell;
 }
 
+/** Used to convert a block of a matrix ( with size = iEnd-iStart ) to hll format*/
 ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, MatT iStart, MatT iEnd) {
     if (!csr) {
         errno = EINVAL;
