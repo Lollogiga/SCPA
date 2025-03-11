@@ -13,7 +13,7 @@
 > - [x] Convertire le matrici in formato ```HLL```
 
 > - [ ] Realizzare il prodotto _**matrice**_ x _**vettore**_ nei seguenti formati:
->   - [ ] Prodotto in ```Seriale```
+>   - [x] Prodotto in ```Seriale```
 >   - [ ] Prodotto in ```OpenMP```
 >   - [ ] Prodotto in ```CUDA```
 

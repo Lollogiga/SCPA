@@ -14,20 +14,19 @@ ThreadDataRange *matrixBalanceCSR(CSRMatrix *csr, int numThreads) {
         row_weights[i] = csr->IRP[i + 1] - csr->IRP[i];
     }
 
-    int total_weight = 0;
-    for (int i = 0; i < csr->M; i++) {
-        total_weight += row_weights[i];
-    }
+    /** Total_weight = # of NZ */
+    int total_weight = csr->NZ;
 
     int weight_per_thread = total_weight / numThreads;
-    ThreadDataRange *threadRanges = malloc(sizeof(ThreadDataRange) * numThreads);
+    ThreadDataRange *threadRanges = calloc(numThreads, sizeof(ThreadDataRange));
     if (!threadRanges) {
         perror("matrixBalanceCSR: threadRanges allocation error");
         free(row_weights);
         return NULL;
     }
 
-    int current_weight = 0, thread_idx = 1;
+    //TODO: Io peso che thread_idx debba essere 0 e non 1.
+    int current_weight = 0, thread_idx = 0;
     threadRanges[0].start = 0;
     for (int i = 0; i < csr->M; i++) {
         current_weight += row_weights[i];

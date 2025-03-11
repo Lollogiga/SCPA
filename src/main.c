@@ -16,9 +16,14 @@
 #include "./include/openmpCSR.h"
 #include "./include/openmpHLL.h"
 
+double  compute_flops(MatT NZ, double timer) {
+    return 2*NZ/(timer * 1e9); // Compute GFLOPS
+}
+
 int csr_product(CSRMatrix *matrix, MatVal *vector) {
     ResultVector *csr_product = NULL;
     double start =0, end = 0;
+    MatT NZ = matrix->NZ;
 
     // Serial solution
     start = omp_get_wtime();
@@ -29,7 +34,8 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     }
     end = omp_get_wtime();
     free_ResultVector(csr_product);
-    printf("csr_serial: Elapsed mean time = %lf\n", end - start);
+    //printf("csr_serial: Elapsed mean time = %lf\n", end - start);
+    printf("csr_serial: GFLOPS = %lf\n", compute_flops(NZ, end - start));
 
     // OpenMP solution 1
     start = omp_get_wtime();
@@ -40,7 +46,9 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     }
     end = omp_get_wtime();
     free_ResultVector(csr_product);
-    printf("csr_openmp1: Elapsed mean time = %lf\n", end - start);
+    //printf("csr_openmp1: Elapsed mean time = %lf\n", end - start);
+    printf("csr_openmp1: GFLOPS = %lf\n", compute_flops(NZ, end - start));
+
 
     // OpenMP solution 2
     start = omp_get_wtime();
@@ -51,7 +59,9 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     }
     end = omp_get_wtime();
     free_ResultVector(csr_product);
-    printf("csr_openmp2: Elapsed mean time = %lf\n", end - start);
+    //printf("csr_openmp2: Elapsed mean time = %lf\n", end - start);
+    printf("csr_openmp2: GFLOPS = %lf\n", compute_flops(NZ, end - start));
+
 
     // OpenMP solution 3
     start = omp_get_wtime();
@@ -62,7 +72,9 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     }
     end = omp_get_wtime();
     free_ResultVector(csr_product);
-    printf("csr_openmp3: Elapsed mean time = %lf\n", end - start);
+    //printf("csr_openmp3: Elapsed mean time = %lf\n", end - start);
+    printf("csr_openmp3: GFLOPS = %lf\n", compute_flops(NZ, end - start));
+
 
     // OpenMP solution 4
     start = omp_get_wtime();
@@ -73,7 +85,9 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     }
     end = omp_get_wtime();
     free_ResultVector(csr_product);
-    printf("csr_openmp4: Elapsed mean time = %lf\n", end - start);
+    //printf("csr_openmp4: Elapsed mean time = %lf\n", end - start);
+    printf("csr_openmp4: GFLOPS = %lf\n", compute_flops(NZ, end - start));
+
 
     // OpenMP solution 5
     ThreadDataRange *tdr = matrixBalanceCSR(matrix, 2);
@@ -85,12 +99,14 @@ int csr_product(CSRMatrix *matrix, MatVal *vector) {
     }
     end = omp_get_wtime();
     free_ResultVector(csr_product);
-    printf("csr_openmp5: Elapsed mean time = %lf\n", end - start);
+    //printf("csr_openmp5: Elapsed mean time = %lf\n", end - start);
+    printf("csr_openmp5: GFLOPS = %lf\n", compute_flops(NZ, end - start));
+
 
     return 0;
 }
 
-int hll_product(HLLMatrix *matrix, MatVal *vector) {
+int hll_product(HLLMatrix *matrix, MatVal *vector, const MatT NZ) {
     ResultVector *hll_product = NULL;
     double start =0, end = 0;
 
@@ -98,12 +114,13 @@ int hll_product(HLLMatrix *matrix, MatVal *vector) {
     start = omp_get_wtime();
     hll_product = hll_serialProduct(matrix, vector);
     if (hll_product == NULL) {
-        perror("Error csr_SerialProduct\n");
+        perror("Error hll_SerialProduct\n");
         return -1;
     }
     end = omp_get_wtime();
     free_ResultVector(hll_product);
-    printf("hll_serial: Elapsed mean time = %lf\n", end - start);
+    //printf("hll_serial: Elapsed mean time = %lf\n", end - start);
+    printf("hll_serial: GFLOPS = %lf\n", compute_flops(NZ, end - start));
 
     // OpenMP solution 1
     start = omp_get_wtime();
@@ -114,30 +131,34 @@ int hll_product(HLLMatrix *matrix, MatVal *vector) {
     }
     end = omp_get_wtime();
     free_ResultVector(hll_product);
-    printf("hll_openmp1: Elapsed mean time = %lf\n", end - start);
+    //printf("hll_openmp1: Elapsed mean time = %lf\n", end - start);
+    printf("hll_openmp1: GFLOPS = %lf\n", compute_flops(NZ, end - start));
+
 
     // OpenMP solution 2
     start = omp_get_wtime();
     hll_product = hll_openmpProduct_sol2(matrix, vector);
     if (hll_product == NULL) {
-        perror("Error csr_openmpProduct_sol2\n");
+        perror("Error hll_openmpProduct_sol2\n");
         return -1;
     }
     end = omp_get_wtime();
     free_ResultVector(hll_product);
-    printf("hll_openmp2: Elapsed mean time = %lf\n", end - start);
+    //printf("hll_openmp2: Elapsed mean time = %lf\n", end - start);
+    printf("hll_openmp2: GFLOPS = %lf\n", compute_flops(NZ, end - start));
 
     // OpenMP solution 3: added some preprocessing
     ThreadDataRange *tdr = matrixBalanceHLL(matrix, 2);
     start = omp_get_wtime();
     hll_product = hll_openmpProduct_sol3(matrix, vector, 2, tdr);
     if (hll_product == NULL) {
-        perror("Error csr_openmpProduct_sol2\n");
+        perror("Error hll_openmpProduct_sol2\n");
         return -1;
     }
     end = omp_get_wtime();
     free_ResultVector(hll_product);
-    printf("hll_openmp3: Elapsed mean time = %lf\n", end - start);
+    //printf("hll_openmp3: Elapsed mean time = %lf\n", end - start);
+    printf("hll_openmp3: GFLOPS = %lf\n", compute_flops(NZ, end - start));
 
     return 0;
 }
@@ -155,6 +176,11 @@ int computeMatrixFile(char *matrixFile) {
     MatrixData *rawMatrixData  = read_matrix(f);
     if (rawMatrixData == NULL) {
         perror("Error reading matrix data\n");
+    }
+
+    MatT matrixNZ;
+    if (rawMatrixData) {
+        matrixNZ = rawMatrixData->NZ;
     }
 
     // Convert in CSR format:
@@ -192,7 +218,7 @@ int computeMatrixFile(char *matrixFile) {
         perror("Error create_vector\n");
     }
 
-    hll_product(hllMatrix, hll_vector);
+    hll_product(hllMatrix, hll_vector, matrixNZ);
 
     ResultVector *hll_product = hll_serialProduct(hllMatrix, hll_vector);
     if (hll_product == NULL) {
@@ -294,9 +320,9 @@ int main(int argc, char *argv[]) {
 #else
     printf("TEST_SINGcsrLE_FILE else\n\n");
 
-    computeMatrixFile("../matrixTest/ns_example.mtx");
-    computeMatrixFile("../matrixTest/cant.mtx");
-    // computeMatrixFile("../matrix/Cube_Coup_dt0.mtx");
+    //computeMatrixFile("../matrixTest/ns_example.mtx");
+    computeMatrixFile("../matrixTest/Cube_Coup_dt0.mtx");
+    //computeMatrixFile("../matrix/Cube_Coup_dt0.mtx");
     // computeMatrixFile("../matrix/ML_Laplace.mtx");
 #endif
 
