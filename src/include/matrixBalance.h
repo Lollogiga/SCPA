@@ -14,4 +14,6 @@ typedef struct {
 
 ThreadDataRange *matrixBalanceCSR(CSRMatrix *csr, int numThreads);
 ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads);
+ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrix_sol2 *hll, int numThreads);
+
 #endif //MATRIXBALANCE_H

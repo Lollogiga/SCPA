@@ -88,3 +88,55 @@ ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
     return result;
 }
 
+void *ellpack_sol2_serialProduct(ELLPACKMatrix_sol2 *ell, const MatVal *vector, MatVal *result) {
+    if (!ell) {
+        perror("ellpack_serialProduct: ell is NULL");
+        return NULL;
+    }
+
+    if (!result) {
+        perror("ellpack_serialProduct: malloc");
+        return NULL;
+    }
+
+    for (MatT i = 0; i < ell->M; i++) {
+        for (MatT j = 0; j < ell->MAXNZ; j++) {
+            MatT col_index = ell->JA[i * ell->MAXNZ + j];
+
+            result[i] += ell->AS[i * ell->MAXNZ + j] * vector[col_index];
+        }
+    }
+
+    return result;
+}
+
+ResultVector *hll_sol2_serialProduct(HLLMatrix_sol2 *hll, MatVal *vector) {
+    if(!hll) {
+        perror("hll_serialProduct: hll is NULL");
+        return NULL;
+    }
+
+    if (!vector) {
+        perror("hll_serialProduct: create_vector");
+        return NULL;
+    }
+
+    //Create result vector
+    ResultVector *result = create_result_vector(hll->M);
+    if (!result) {
+        perror("hll_serialProduct: create_result_vector");
+        return NULL;
+    }
+
+    for (MatT i = 0; i < hll->numBlocks; i++) {
+        ELLPACKMatrix_sol2 *block = hll->blocks[i];
+        void *res = ellpack_sol2_serialProduct(block, vector, result->val + block->startRow);
+        if (!res) {
+            perror("hll_serialProduct: ellpack_serialProduct");
+            free(result);
+            return NULL;
+        }
+    }
+
+    return result;
+}

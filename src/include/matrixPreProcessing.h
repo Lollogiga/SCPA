@@ -146,6 +146,24 @@ typedef struct {
     MatVal **AS;    /**< 2D array (size: M x MAXNZ) storing nonzero values. */
 } ELLPACKMatrix;
 
+typedef struct {
+    MatT startRow;  /**< Global index of the starting row for this block */
+
+    MatT M;         /**< Total number of rows in the matrix */
+    MatT N;         /**< Total number of columns in the matrix */
+    MatT MAXNZ;     /**< Maximum number of nonzero elements per row */
+
+    MatT *JA;      /**< array (size: M x MAXNZ) storing column indices of nonzero elements. */
+    MatVal *AS;    /**< array (size: M x MAXNZ) storing nonzero values. */
+} ELLPACKMatrix_sol2;
+
+typedef struct {
+    MatT numBlocks;         /**< Total number of block for matrix */
+    int hackSize;           /**< Size (Number of rows) of each block */
+    MatT N;                 /**< Total number of columns in the matrix*/
+    MatT M;                 /**< Total number of row*/
+    ELLPACKMatrix_sol2 **blocks; /**< List of block */
+} HLLMatrix_sol2;
 
 typedef struct {
     MatT numBlocks;         /**< Total number of block for matrix */
@@ -160,5 +178,7 @@ CSRMatrix *convert_to_CSR(MatrixData *matrix);
 ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *matrix);
 ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int iEnd);
 HLLMatrix *convert_to_HLL(CSRMatrix *matrix, int hackSize);
+ELLPACKMatrix_sol2 *convert_to_ELLPACK_sol2(CSRMatrix *csr, int iStart, int iEnd);
+HLLMatrix_sol2 *convert_to_HLL_sol2(CSRMatrix *matrix, int hackSize);
 
 #endif //MATRIXPREPROCESSING_H

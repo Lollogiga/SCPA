@@ -94,3 +94,63 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
 
     return threadRanges;
 }
+
+ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrix_sol2 *hll, int numThreads) {
+    if (!hll) {
+        perror("hll_serialProduct: hll is NULL");
+        return NULL;
+    }
+
+    // Allocazione dei pesi per i blocchi
+    int *block_weights = calloc(hll->numBlocks, sizeof(MatT));
+    if (!block_weights) {
+        perror("matrixBalanceHLL: block_weights allocation error");
+        return NULL;
+    }
+
+    int total_weight = 0;
+
+    // Iterazione sui blocchi HLL
+    for (int i = 0; i < hll->numBlocks; i++) {
+        ELLPACKMatrix_sol2 *ell = hll->blocks[i];  // Blocchi della matrice HLL
+
+        // Iterazione sulle righe della matrice ELLPACK
+        for (MatT j = 0; j < ell->M; j++) {
+            // Iterazione sugli elementi non zero nella riga j
+            for (MatT k = 0; k < ell->MAXNZ; k++) {
+                if (ell->AS[j * ell->MAXNZ + k] != 0) {
+                    block_weights[i]++;  // Incrementa il peso del blocco
+                }
+            }
+        }
+
+        total_weight += block_weights[i];  // Somma totale del peso dei blocchi
+    }
+
+    int avg_weight_per_thread = total_weight / numThreads;
+
+    // Allocazione della struttura che gestisce le assegnazioni dei blocchi per thread
+    ThreadDataRange *threadRanges = malloc(sizeof(ThreadDataRange) * numThreads);
+    if (!threadRanges) {
+        perror("matrixBalanceHLL: threadRanges allocation error");
+        free(block_weights);
+        return NULL;
+    }
+
+    // Assegnazione dei blocchi in base ai pesi
+    int current_weight = 0, thread_idx = 0;
+    threadRanges[0].start = 0;
+    for (int i = 0; i < hll->numBlocks; i++) {
+        current_weight += block_weights[i];
+        if (current_weight >= avg_weight_per_thread && thread_idx < numThreads - 1) {
+            threadRanges[thread_idx].end = i;
+            threadRanges[++thread_idx].start = i + 1;
+            current_weight = 0;
+        }
+    }
+    threadRanges[numThreads - 1].end = hll->numBlocks - 1;
+
+    free(block_weights);  // Dealloca il vettore dei pesi
+
+    return threadRanges;
+}
