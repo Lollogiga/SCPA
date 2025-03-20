@@ -46,7 +46,7 @@ typedef struct {
     MatT *I;      /**< Array of row indices for nonzero elements (size: NZ) */
     MatT *J;      /**< Array of column indices for nonzero elements (size: NZ) */
     MatVal *val;  /**< Array of nonzero values in the matrix (size: NZ) */
-} MatrixData;
+} RawMatrix;
 
 /**
  * @brief Data structure for storing a sparse matrix in Compressed Sparse Row (CSR) format.
@@ -147,6 +147,17 @@ typedef struct {
 } ELLPACKMatrix;
 
 typedef struct {
+    MatT numBlocks;         /**< Total number of block for matrix */
+    int hackSize;           /**< Size (Number of rows) of each block */
+
+    MatT N;                 /**< Total number of columns in the matrix */
+    MatT M;                 /**< Total number of row */
+    MatT NZ;                /**< Total number of NZ in the matrix */
+
+    ELLPACKMatrix **blocks; /**< List of block */
+} HLLMatrix;
+
+typedef struct {
     MatT startRow;  /**< Global index of the starting row for this block */
 
     MatT M;         /**< Total number of rows in the matrix */
@@ -155,30 +166,25 @@ typedef struct {
 
     MatT *JA;      /**< array (size: M x MAXNZ) storing column indices of nonzero elements. */
     MatVal *AS;    /**< array (size: M x MAXNZ) storing nonzero values. */
-} ELLPACKMatrix_sol2;
+} ELLPACKMatrixAligned;
 
 typedef struct {
     MatT numBlocks;         /**< Total number of block for matrix */
     int hackSize;           /**< Size (Number of rows) of each block */
+
     MatT N;                 /**< Total number of columns in the matrix*/
     MatT M;                 /**< Total number of row*/
-    ELLPACKMatrix_sol2 **blocks; /**< List of block */
-} HLLMatrix_sol2;
+    MatT NZ;                /**< Total number of NZ in the matrix */
 
-typedef struct {
-    MatT numBlocks;         /**< Total number of block for matrix */
-    int hackSize;           /**< Size (Number of rows) of each block */
-    MatT N;                 /**< Total number of columns in the matrix*/
-    MatT M;                 /**< Total number of row*/
-    ELLPACKMatrix **blocks; /**< List of block */
-} HLLMatrix;
+    ELLPACKMatrixAligned **blocks; /**< List of block */
+} HLLMatrixAligned;
 
-MatrixData *read_matrix(FILE *f);
-CSRMatrix *convert_to_CSR(MatrixData *matrix);
+RawMatrix *read_matrix(FILE *f);
+CSRMatrix *convert_to_CSR(RawMatrix *matrix);
 ELLPACKMatrix *convert_to_ELLPACK(CSRMatrix *matrix);
 ELLPACKMatrix *convert_to_ELLPACK_parametrized(CSRMatrix *csr, int iStart, int iEnd);
 HLLMatrix *convert_to_HLL(CSRMatrix *matrix, int hackSize);
-ELLPACKMatrix_sol2 *convert_to_ELLPACK_sol2(CSRMatrix *csr, int iStart, int iEnd);
-HLLMatrix_sol2 *convert_to_HLL_sol2(CSRMatrix *matrix, int hackSize);
+ELLPACKMatrixAligned *convert_to_ELLPACK_aligned(CSRMatrix *csr, int iStart, int iEnd);
+HLLMatrixAligned *convert_to_HLL_aligned(CSRMatrix *matrix, int hackSize);
 
 #endif //MATRIXPREPROCESSING_H

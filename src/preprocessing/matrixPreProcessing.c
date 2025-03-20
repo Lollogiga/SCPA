@@ -7,9 +7,9 @@
 #include "../include/matrixPreProcessing.h"
 #include "../include/mmio.h"
 
-MatrixData *read_matrix(FILE *f) {
+RawMatrix *read_matrix(FILE *f) {
 
-    MatrixData *data = malloc(sizeof(MatrixData));
+    RawMatrix *data = malloc(sizeof(RawMatrix));
     MM_typecode matcode;
 
     // Read and check the presence of the banner in the Matrix Market file
@@ -150,7 +150,7 @@ MatrixData *read_matrix(FILE *f) {
 
 }
 
-CSRMatrix *convert_to_CSR(MatrixData *rawMatrixData) {
+CSRMatrix *convert_to_CSR(RawMatrix *rawMatrixData) {
     CSRMatrix *csrMatrix = (CSRMatrix *) malloc(sizeof(CSRMatrix)) ;
     csrMatrix->M = rawMatrixData->M;
     csrMatrix->N = rawMatrixData->N;
@@ -403,6 +403,7 @@ HLLMatrix *convert_to_HLL(CSRMatrix *csr, int hackSize) {
     hllMatrix->hackSize = hackSize;
     hllMatrix->N = csr->N;
     hllMatrix->M = csr->M;
+    hllMatrix->NZ = csr->NZ;
 
     // Compute number of blocks:
     hllMatrix->numBlocks = (csr->M + hackSize - 1) / hackSize; //Rounding up
@@ -440,7 +441,7 @@ HLLMatrix *convert_to_HLL(CSRMatrix *csr, int hackSize) {
     return hllMatrix;
 }
 
-ELLPACKMatrix_sol2 *convert_to_ELLPACK_sol2(CSRMatrix *csr, const MatT iStart, MatT iEnd) {
+ELLPACKMatrixAligned *convert_to_ELLPACK_aligned(CSRMatrix *csr, const MatT iStart, MatT iEnd) {
     if (!csr) {
         errno = EINVAL;
         fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - CSR matrix not initialized\n", strerror(errno));
@@ -467,7 +468,7 @@ ELLPACKMatrix_sol2 *convert_to_ELLPACK_sol2(CSRMatrix *csr, const MatT iStart, M
         iEnd = csr->M;
     }
 
-    ELLPACKMatrix_sol2 *ell = malloc(sizeof(ELLPACKMatrix_sol2));
+    ELLPACKMatrixAligned *ell = malloc(sizeof(ELLPACKMatrixAligned));
     if(ell == NULL) {
         errno = ENOMEM;
         fprintf(stderr, "convert_to_ELLPACK_parametrized: Error: %s - Problem allocating \"ELLPACKMatrix\"\n", strerror(errno));
@@ -530,7 +531,7 @@ ELLPACKMatrix_sol2 *convert_to_ELLPACK_sol2(CSRMatrix *csr, const MatT iStart, M
     return ell;
 }
 
-HLLMatrix_sol2 *convert_to_HLL_sol2(CSRMatrix *csr, int hackSize) {
+HLLMatrixAligned *convert_to_HLL_aligned(CSRMatrix *csr, int hackSize) {
     if (!csr) {
         errno = EINVAL;
         fprintf(stderr, "convert_to_HLL: Error: %s - CSRMatrix input is invalid\n", strerror(errno));
@@ -538,7 +539,7 @@ HLLMatrix_sol2 *convert_to_HLL_sol2(CSRMatrix *csr, int hackSize) {
         return NULL;
     }
 
-    HLLMatrix_sol2 *hllMatrix = malloc(sizeof(HLLMatrix_sol2));
+    HLLMatrixAligned *hllMatrix = malloc(sizeof(HLLMatrixAligned));
     if (!hllMatrix) {
         perror("Memory allocation error");
         return NULL;
@@ -547,12 +548,13 @@ HLLMatrix_sol2 *convert_to_HLL_sol2(CSRMatrix *csr, int hackSize) {
     hllMatrix->hackSize = hackSize;
     hllMatrix->N = csr->N;
     hllMatrix->M = csr->M;
+    hllMatrix->NZ = csr->NZ;
 
     // Compute number of blocks:
     hllMatrix->numBlocks = (csr->M + hackSize - 1) / hackSize; //Rounding up
 
     // Allocate memory:
-    hllMatrix->blocks = (ELLPACKMatrix_sol2 **)malloc(hllMatrix->numBlocks * sizeof(ELLPACKMatrix_sol2*));
+    hllMatrix->blocks = (ELLPACKMatrixAligned **)malloc(hllMatrix->numBlocks * sizeof(ELLPACKMatrixAligned*));
     if (!hllMatrix->blocks) {
         perror("Memory allocation error");
 
@@ -568,7 +570,7 @@ HLLMatrix_sol2 *convert_to_HLL_sol2(CSRMatrix *csr, int hackSize) {
         MatT row_end = (row_start + hllMatrix->hackSize > csr->M) ? csr->M : row_start + hllMatrix->hackSize;
 
         // Leak of memory allocated in function 'convert_to_ELLPACK_parametrized'
-        hllMatrix->blocks[i] = convert_to_ELLPACK_sol2(csr, row_start, row_end);
+        hllMatrix->blocks[i] = convert_to_ELLPACK_aligned(csr, row_start, row_end);
         if (!hllMatrix->blocks[i]) {
             perror("Memory allocation error");
 

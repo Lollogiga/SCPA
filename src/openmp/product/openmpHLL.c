@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "../include/matrixBalance.h"
-#include "../include/matrixPreProcessing.h"
-#include "../include/openmpHLL.h"
+#include "../../include/matrixBalance.h"
+#include "../../include/matrixPreProcessing.h"
+#include "../../include/openmpHLL.h"
 
 
 void *ellpack_openmpProduct(ELLPACKMatrix *ell, const MatVal *vector, MatVal *result) {
@@ -30,8 +30,8 @@ void *ellpack_openmpProduct(ELLPACKMatrix *ell, const MatVal *vector, MatVal *re
     return result;
 }
 
-ResultVector *hll_openmpProduct_sol1(HLLMatrix *hll, MatVal *vector) {
-    if(!hll) {
+ResultVector *hll_openmpProduct_sol1(HLLMatrix *hll, MatVal *vector, int num_threads) {
+    if (!hll) {
         perror("hll_openmpProduct_sol1: hll is NULL");
         return NULL;
     }
@@ -49,6 +49,8 @@ ResultVector *hll_openmpProduct_sol1(HLLMatrix *hll, MatVal *vector) {
     }
 
     volatile bool error_flag = 0;
+
+    omp_set_num_threads(num_threads);
 
 #pragma omp parallel for shared(error_flag)
     for (MatT i = 0; i < hll->numBlocks; i++) {
@@ -73,8 +75,8 @@ ResultVector *hll_openmpProduct_sol1(HLLMatrix *hll, MatVal *vector) {
     return result;
 }
 
-ResultVector *hll_openmpProduct_sol2(HLLMatrix *hll, MatVal *vector) {
-    if(!hll) {
+ResultVector *hll_openmpProduct_sol2(HLLMatrix *hll, MatVal *vector, int num_threads) {
+    if (!hll) {
         perror("hll_openmpProduct_sol2: hll is NULL");
         return NULL;
     }
@@ -92,6 +94,8 @@ ResultVector *hll_openmpProduct_sol2(HLLMatrix *hll, MatVal *vector) {
     }
 
     volatile bool error_flag = 0;
+
+    omp_set_num_threads(num_threads);
 
 #pragma omp parallel for shared(error_flag) schedule(dynamic)
     for (MatT i = 0; i < hll->numBlocks; i++) {
@@ -116,8 +120,8 @@ ResultVector *hll_openmpProduct_sol2(HLLMatrix *hll, MatVal *vector) {
     return result;
 }
 
-ResultVector *hll_openmpProduct_sol3(HLLMatrix *hll, MatVal *vector, int num_threads, ThreadDataRange* tdr) {
-    if(!hll) {
+ResultVector *hll_openmpProduct_sol3(HLLMatrix *hll, MatVal *vector, int num_threads, ThreadDataRange *tdr) {
+    if (!hll) {
         perror("hll_openmpProduct_sol3: hll is NULL");
         return NULL;
     }
@@ -171,8 +175,7 @@ ResultVector *hll_openmpProduct_sol3(HLLMatrix *hll, MatVal *vector, int num_thr
     return result;
 }
 
-
-void *ellpack_sol2_openmpProduct(ELLPACKMatrix_sol2 *ell, const MatVal *vector, MatVal *result) {
+void *ellpackAligned_openmpProduct(ELLPACKMatrixAligned *ell, const MatVal *vector, MatVal *result) {
     if (!ell) {
         perror("ellpack_serialProduct: ell is NULL");
         return NULL;
@@ -194,8 +197,8 @@ void *ellpack_sol2_openmpProduct(ELLPACKMatrix_sol2 *ell, const MatVal *vector, 
     return result;
 }
 
-ResultVector *hll_sol2_openmpProduct(HLLMatrix_sol2 *hll, MatVal *vector) {
-    if(!hll) {
+ResultVector *hllAligned_openmpProduct(HLLMatrixAligned *hll, MatVal *vector, int num_threads) {
+    if (!hll) {
         perror("hll_openmpProduct_sol1: hll is NULL");
         return NULL;
     }
@@ -214,12 +217,14 @@ ResultVector *hll_sol2_openmpProduct(HLLMatrix_sol2 *hll, MatVal *vector) {
 
     volatile bool error_flag = 0;
 
+    omp_set_num_threads(num_threads);
+
 #pragma omp parallel for shared(error_flag)
     for (MatT i = 0; i < hll->numBlocks; i++) {
         if (error_flag) continue;
 
-        ELLPACKMatrix_sol2 *block = hll->blocks[i];
-        void *res = ellpack_sol2_openmpProduct(block, vector, result->val + block->startRow);
+        ELLPACKMatrixAligned *block = hll->blocks[i];
+        void *res = ellpackAligned_openmpProduct(block, vector, result->val + block->startRow);
         if (!res) {
             perror("hll_openmpProduct_sol1: ellpack_serialProduct");
 
@@ -237,8 +242,8 @@ ResultVector *hll_sol2_openmpProduct(HLLMatrix_sol2 *hll, MatVal *vector) {
     return result;
 }
 
-ResultVector *hll_sol2_openmpProduct_sol2(HLLMatrix_sol2 *hll, MatVal *vector) {
-    if(!hll) {
+ResultVector *hllAligned_openmpProduct_sol2(HLLMatrixAligned *hll, MatVal *vector, int num_threads) {
+    if (!hll) {
         perror("hll_openmpProduct_sol2: hll is NULL");
         return NULL;
     }
@@ -257,12 +262,14 @@ ResultVector *hll_sol2_openmpProduct_sol2(HLLMatrix_sol2 *hll, MatVal *vector) {
 
     volatile bool error_flag = 0;
 
+    omp_set_num_threads(num_threads);
+
 #pragma omp parallel for shared(error_flag) schedule(dynamic)
     for (MatT i = 0; i < hll->numBlocks; i++) {
         if (error_flag) continue;
 
-        ELLPACKMatrix_sol2 *block = hll->blocks[i];
-        void *res = ellpack_sol2_openmpProduct(block, vector, result->val + block->startRow);
+        ELLPACKMatrixAligned *block = hll->blocks[i];
+        void *res = ellpackAligned_openmpProduct(block, vector, result->val + block->startRow);
         if (!res) {
             perror("hll_openmpProduct_sol2: ellpack_serialProduct");
 
@@ -280,8 +287,9 @@ ResultVector *hll_sol2_openmpProduct_sol2(HLLMatrix_sol2 *hll, MatVal *vector) {
     return result;
 }
 
-ResultVector *hll_sol2_openmpProduct_sol3(HLLMatrix_sol2 *hll, MatVal *vector, int num_threads, ThreadDataRange* tdr) {
-    if(!hll) {
+ResultVector *hllAligned_openmpProduct_sol3(HLLMatrixAligned *hll, MatVal *vector, int num_threads,
+                                            ThreadDataRange *tdr) {
+    if (!hll) {
         perror("hll_openmpProduct_sol3: hll is NULL");
         return NULL;
     }
@@ -315,8 +323,8 @@ ResultVector *hll_sol2_openmpProduct_sol3(HLLMatrix_sol2 *hll, MatVal *vector, i
         for (MatT i = start; i < end; i++) {
             if (error_flag) continue;
 
-            ELLPACKMatrix_sol2 *block = hll->blocks[i];
-            void *res = ellpack_sol2_openmpProduct(block, vector, result->val + block->startRow);
+            ELLPACKMatrixAligned *block = hll->blocks[i];
+            void *res = ellpackAligned_openmpProduct(block, vector, result->val + block->startRow);
             if (!res) {
                 perror("hll_openmpProduct_sol3: ellpack_serialProduct");
 

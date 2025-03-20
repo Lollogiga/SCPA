@@ -5,7 +5,7 @@
 #include "../include/matrixPrint.h"
 #include "../include/constants.h"
 
-void print_matrix_data(MatrixData *matrix) {
+void print_matrix_data(RawMatrix *matrix) {
     if (!matrix) return;
 
     for (MatT i=0; i<matrix->NZ; i++) {
@@ -13,7 +13,7 @@ void print_matrix_data(MatrixData *matrix) {
     }
 }
 
-void print_matrix_data_verbose(MatrixData *matrix, bool verbose) {
+void print_matrix_data_verbose(RawMatrix *matrix, bool verbose) {
     if (!matrix) return;
 
     printf("M = %d, N = %d, NZ = %d\n", matrix->M, matrix-> N, matrix-> NZ);

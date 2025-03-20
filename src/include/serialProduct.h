@@ -10,6 +10,6 @@ typedef struct {
 
 ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector);
 ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector);
-ResultVector *hll_sol2_serialProduct(HLLMatrix_sol2 *hll, MatVal *vector);
+ResultVector *hllAligned_serialProduct(HLLMatrixAligned *hll, MatVal *vector);
 
 #endif //SERIALPRODUCT_H

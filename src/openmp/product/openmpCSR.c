@@ -4,12 +4,12 @@
 
 #include <omp.h>
 
-#include "../include/constants.h"
-#include "../include/matrixBalance.h"
-#include "../include/matrixPreProcessing.h"
-#include "../include/openmpCSR.h"
+#include "../../include/constants.h"
+#include "../../include/matrixBalance.h"
+#include "../../include/matrixPreProcessing.h"
+#include "../../include/openmpCSR.h"
 
-ResultVector *csr_openmpProduct_sol1(CSRMatrix *csr, MatVal *vector) {
+ResultVector *csr_openmpProduct_sol1(CSRMatrix *csr, MatVal *vector, int num_threads) {
     if (!csr) {
         perror("csr_openmpProduct_sol1: csr is NULL");
         return NULL;
@@ -28,7 +28,7 @@ ResultVector *csr_openmpProduct_sol1(CSRMatrix *csr, MatVal *vector) {
         return NULL;
     }
 
-    // omp_set_num_threads(1);
+    omp_set_num_threads(num_threads);
 
 #pragma omp parallel
     {
@@ -54,7 +54,7 @@ ResultVector *csr_openmpProduct_sol1(CSRMatrix *csr, MatVal *vector) {
     return result;
 }
 
-ResultVector *csr_openmpProduct_sol2(CSRMatrix *csr, MatVal *vector) {
+ResultVector *csr_openmpProduct_sol2(CSRMatrix *csr, MatVal *vector, int num_threads) {
     if (!csr) {
         perror("csr_openmpProduct_sol2: csr is NULL");
         return NULL;
@@ -73,7 +73,7 @@ ResultVector *csr_openmpProduct_sol2(CSRMatrix *csr, MatVal *vector) {
         return NULL;
     }
 
-    // omp_set_num_threads(1);
+    omp_set_num_threads(num_threads);
 
 #pragma omp parallel for
     for (MatT i = 0; i < csr->M; i++) {
@@ -89,7 +89,7 @@ ResultVector *csr_openmpProduct_sol2(CSRMatrix *csr, MatVal *vector) {
     return result;
 }
 
-ResultVector *csr_openmpProduct_sol3(CSRMatrix *csr, MatVal *vector) {
+ResultVector *csr_openmpProduct_sol3(CSRMatrix *csr, MatVal *vector, int num_threads) {
     if (!csr) {
         perror("csr_openmpProduct_sol3: csr is NULL");
         return NULL;
@@ -108,7 +108,7 @@ ResultVector *csr_openmpProduct_sol3(CSRMatrix *csr, MatVal *vector) {
         return NULL;
     }
 
-    // omp_set_num_threads(1);
+    omp_set_num_threads(num_threads);
 
 #pragma omp parallel for
     for (MatT i = 0; i < csr->M; i++) {
@@ -124,7 +124,7 @@ ResultVector *csr_openmpProduct_sol3(CSRMatrix *csr, MatVal *vector) {
     return result;
 }
 
-ResultVector *csr_openmpProduct_sol4(CSRMatrix *csr, MatVal *vector) {
+ResultVector *csr_openmpProduct_sol4(CSRMatrix *csr, MatVal *vector, int num_threads) {
     if (!csr) {
         perror("csr_openmpProduct_sol4: csr is NULL");
         return NULL;
@@ -143,7 +143,7 @@ ResultVector *csr_openmpProduct_sol4(CSRMatrix *csr, MatVal *vector) {
         return NULL;
     }
 
-    // omp_set_num_threads(1);
+    omp_set_num_threads(num_threads);
 
 #pragma omp parallel for schedule(auto)
     for (MatT i = 0; i < csr->M; i++) {

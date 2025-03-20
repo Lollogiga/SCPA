@@ -4,10 +4,10 @@
 
 #include <stdlib.h>
 
-#include "../include/matricFree.h"
+#include "../include/matrixFree.h"
 
 // Functions for deallocation:
-void free_MatrixData(MatrixData *matrix) {
+void free_MatrixData(RawMatrix *matrix) {
     if (!matrix) return;
 
     if (matrix->I) free(matrix->I);
@@ -47,6 +47,15 @@ void free_ELLPACKMatrix(ELLPACKMatrix *ell) {
     free(ell);
 }
 
+void free_ELLPACKMatrixAligned(ELLPACKMatrixAligned *ell) {
+    if (!ell) return;
+
+    if (ell->JA) free(ell->JA);
+    if (ell->AS) free(ell->AS);
+
+    free(ell);
+}
+
 void free_HLLMatrix(HLLMatrix *hll) {
     if (!hll) return;
 
@@ -54,6 +63,18 @@ void free_HLLMatrix(HLLMatrix *hll) {
 
     for (int i = 0; i < hll->numBlocks; i++)
         if (hll->blocks[i]) free_ELLPACKMatrix(hll->blocks[i]);
+
+    free(hll->blocks);
+    free(hll);
+}
+
+void free_HLLMatrixAligned(HLLMatrixAligned *hll) {
+    if (!hll) return;
+
+    if (!hll->blocks) return;
+
+    for (int i = 0; i < hll->numBlocks; i++)
+        if (hll->blocks[i]) free_ELLPACKMatrixAligned(hll->blocks[i]);
 
     free(hll->blocks);
     free(hll);

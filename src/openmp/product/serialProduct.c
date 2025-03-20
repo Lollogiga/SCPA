@@ -1,10 +1,9 @@
 #include <stdlib.h>
-#include <string.h>
 
-#include "../include/constants.h"
-#include "../include/matrixPreProcessing.h"
-#include "../include/serialProduct.h"
-#include "../include/createVectorUtil.h"
+#include "../../include/constants.h"
+#include "../../include/matrixPreProcessing.h"
+#include "../../include/serialProduct.h"
+#include "../../include/createVectorUtil.h"
 
 ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
     if (!csr) {
@@ -26,7 +25,7 @@ ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
     }
 
     for (MatT i = 0; i < csr->M; i++) {
-        for (MatT j = csr->IRP[i]; j < csr->IRP[i+1]; j++) {
+        for (MatT j = csr->IRP[i]; j < csr->IRP[i + 1]; j++) {
             MatT vector_index = csr->JA[j];
             result->val[i] += csr->AS[j] * vector[vector_index];
         }
@@ -58,7 +57,7 @@ void *ellpack_serialProduct(ELLPACKMatrix *ell, const MatVal *vector, MatVal *re
 }
 
 ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
-    if(!hll) {
+    if (!hll) {
         perror("hll_serialProduct: hll is NULL");
         return NULL;
     }
@@ -88,7 +87,7 @@ ResultVector *hll_serialProduct(HLLMatrix *hll, MatVal *vector) {
     return result;
 }
 
-void *ellpack_sol2_serialProduct(ELLPACKMatrix_sol2 *ell, const MatVal *vector, MatVal *result) {
+void *ellpack_sol2_serialProduct(ELLPACKMatrixAligned *ell, const MatVal *vector, MatVal *result) {
     if (!ell) {
         perror("ellpack_serialProduct: ell is NULL");
         return NULL;
@@ -110,8 +109,8 @@ void *ellpack_sol2_serialProduct(ELLPACKMatrix_sol2 *ell, const MatVal *vector, 
     return result;
 }
 
-ResultVector *hll_sol2_serialProduct(HLLMatrix_sol2 *hll, MatVal *vector) {
-    if(!hll) {
+ResultVector *hllAligned_serialProduct(HLLMatrixAligned *hll, MatVal *vector) {
+    if (!hll) {
         perror("hll_serialProduct: hll is NULL");
         return NULL;
     }
@@ -129,7 +128,7 @@ ResultVector *hll_sol2_serialProduct(HLLMatrix_sol2 *hll, MatVal *vector) {
     }
 
     for (MatT i = 0; i < hll->numBlocks; i++) {
-        ELLPACKMatrix_sol2 *block = hll->blocks[i];
+        ELLPACKMatrixAligned *block = hll->blocks[i];
         void *res = ellpack_sol2_serialProduct(block, vector, result->val + block->startRow);
         if (!res) {
             perror("hll_serialProduct: ellpack_serialProduct");

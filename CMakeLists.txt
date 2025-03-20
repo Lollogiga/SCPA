@@ -15,33 +15,42 @@ add_executable(
         src/preprocessing/mmio.c
         src/include/mmio.h
 
-        src/utils/matricFree.c
-        src/include/matricFree.h
-
-        src/utils/matrixPrint.c
-        src/include/matrixPrint.h
-
         src/preprocessing/matrixPreProcessing.c
         src/include/matrixPreProcessing.h
-
-        src/product/serialProduct.c
-        src/include/serialProduct.h
-
-        src/utils/createVectorUtil.c
-        src/include/createVectorUtil.h
 
         src/utils/fileUtils.c
         src/include/fileUtils.h
 
-        src/product/openmpCSR.c
-        src/include/openmpCSR.h
+        src/utils/matrixFree.c
+        src/include/matrixFree.h
 
-        src/product/openmpHLL.c
-        src/include/openmpHLL.h
+        src/utils/matrixPrint.c
+        src/include/matrixPrint.h
 
         src/utils/matrixBalance.c
         src/include/matrixBalance.h
+
+        src/utils/flops.c
+        src/include/flops.h
+
+        src/openmp/createVectorUtil.c
+        src/include/createVectorUtil.h
+
+        src/openmp/product/serialProduct.c
+        src/include/serialProduct.h
+
+        src/openmp/product/openmpCSR.c
+        src/include/openmpCSR.h
+
+        src/openmp/product/openmpHLL.c
+        src/include/openmpHLL.h
+
+        src/openmp/computeOpenMP.c
+        src/include/computeOpenMP.h
 )
+
+# Aggiungi la cartella degli header
+target_include_directories(SCPA PRIVATE ${CMAKE_SOURCE_DIR}/src/include)
 
 # Abilita OpenMP
 find_package(OpenMP REQUIRED)

@@ -95,7 +95,7 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
     return threadRanges;
 }
 
-ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrix_sol2 *hll, int numThreads) {
+ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrixAligned *hll, int numThreads) {
     if (!hll) {
         perror("hll_serialProduct: hll is NULL");
         return NULL;
@@ -112,7 +112,7 @@ ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrix_sol2 *hll, int numThreads) {
 
     // Iterazione sui blocchi HLL
     for (int i = 0; i < hll->numBlocks; i++) {
-        ELLPACKMatrix_sol2 *ell = hll->blocks[i];  // Blocchi della matrice HLL
+        ELLPACKMatrixAligned *ell = hll->blocks[i];  // Blocchi della matrice HLL
 
         // Iterazione sulle righe della matrice ELLPACK
         for (MatT j = 0; j < ell->M; j++) {

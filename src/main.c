@@ -1,169 +1,16 @@
 #include <dirent.h>
-#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
-#include "./include/fileUtils.h"
-#include "./include/matrixBalance.h"
-#include "./include/matrixPreProcessing.h"
-#include "./include/matricFree.h"
-#include "./include/matrixPrint.h"
-#include "./include/serialProduct.h"
 #include "./include/createVectorUtil.h"
-#include "./include/openmpCSR.h"
-#include "./include/openmpHLL.h"
-
-double  compute_flops(MatT NZ, double timer) {
-    return 2*NZ/(timer * 1e9); // Compute GFLOPS
-}
-
-int csr_product(CSRMatrix *matrix, MatVal *vector) {
-    ResultVector *csr_product = NULL;
-    double start =0, end = 0;
-    MatT NZ = matrix->NZ;
-
-    // Serial solution
-    start = omp_get_wtime();
-    csr_product = csr_serialProduct(matrix, vector);
-    if (csr_product == NULL) {
-        perror("Error csr_SerialProduct\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(csr_product);
-    //printf("csr_serial: Elapsed mean time = %lf\n", end - start);
-    printf("csr_serial: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-    // OpenMP solution 1
-    start = omp_get_wtime();
-    csr_product = csr_openmpProduct_sol1(matrix, vector);
-    if (csr_product == NULL) {
-        perror("Error csr_openmpProduct_sol1\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(csr_product);
-    //printf("csr_openmp1: Elapsed mean time = %lf\n", end - start);
-    printf("csr_openmp1: GFLOPS = %lf\n", compute_flops(NZ, end - start));
+#include "./include/fileUtils.h"
+#include "./include/matrixFree.h"
+#include "./include/matrixPreProcessing.h"
+#include "./include/computeOpenMP.h"
 
 
-    // OpenMP solution 2
-    start = omp_get_wtime();
-    csr_product = csr_openmpProduct_sol2(matrix, vector);
-    if (csr_product == NULL) {
-        perror("Error csr_openmpProduct_sol2\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(csr_product);
-    //printf("csr_openmp2: Elapsed mean time = %lf\n", end - start);
-    printf("csr_openmp2: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-
-    // OpenMP solution 3
-    start = omp_get_wtime();
-    csr_product = csr_openmpProduct_sol3(matrix, vector);
-    if (csr_product == NULL) {
-        perror("Error csr_openmpProduct_sol3\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(csr_product);
-    //printf("csr_openmp3: Elapsed mean time = %lf\n", end - start);
-    printf("csr_openmp3: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-
-    // OpenMP solution 4
-    start = omp_get_wtime();
-    csr_product = csr_openmpProduct_sol4(matrix, vector);
-    if (csr_product == NULL) {
-        perror("Error csr_openmpProduct_sol4\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(csr_product);
-    //printf("csr_openmp4: Elapsed mean time = %lf\n", end - start);
-    printf("csr_openmp4: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-
-    // OpenMP solution 5
-    ThreadDataRange *tdr = matrixBalanceCSR(matrix, 2);
-    start = omp_get_wtime();
-    csr_product = csr_openmpProduct_sol5(matrix, vector, 2, tdr);
-    if (csr_product == NULL) {
-        perror("Error csr_openmpProduct_sol4\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(csr_product);
-    //printf("csr_openmp5: Elapsed mean time = %lf\n", end - start);
-    printf("csr_openmp5: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-
-    return 0;
-}
-
-int hll_product(HLLMatrix *matrix, MatVal *vector, const MatT NZ) {
-    ResultVector *hll_product = NULL;
-    double start =0, end = 0;
-
-    // Serial solution
-    start = omp_get_wtime();
-    hll_product = hll_serialProduct(matrix, vector);
-    if (hll_product == NULL) {
-        perror("Error hll_SerialProduct\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(hll_product);
-    //printf("hll_serial: Elapsed mean time = %lf\n", end - start);
-    printf("hll_serial: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-    // OpenMP solution 1
-    start = omp_get_wtime();
-    hll_product = hll_openmpProduct_sol1(matrix, vector);
-    if (hll_product == NULL) {
-        perror("Error hll_openmpProduct_sol1\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(hll_product);
-    //printf("hll_openmp1: Elapsed mean time = %lf\n", end - start);
-    printf("hll_openmp1: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-
-    // OpenMP solution 2
-    start = omp_get_wtime();
-    hll_product = hll_openmpProduct_sol2(matrix, vector);
-    if (hll_product == NULL) {
-        perror("Error hll_openmpProduct_sol2\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(hll_product);
-    //printf("hll_openmp2: Elapsed mean time = %lf\n", end - start);
-    printf("hll_openmp2: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-    // OpenMP solution 3: added some preprocessing
-    ThreadDataRange *tdr = matrixBalanceHLL(matrix, 2);
-    start = omp_get_wtime();
-    hll_product = hll_openmpProduct_sol3(matrix, vector, 2, tdr);
-    if (hll_product == NULL) {
-        perror("Error hll_openmpProduct_sol2\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(hll_product);
-    //printf("hll_openmp3: Elapsed mean time = %lf\n", end - start);
-    printf("hll_openmp3: GFLOPS = %lf\n", compute_flops(NZ, end - start));
-
-    return 0;
-}
-
-int computeMatrixFile(char *matrixFile) {
+int computeMatrix(const char *matrixFile) {
     FILE *f;
 
     // Open Matrix Market file
@@ -173,189 +20,66 @@ int computeMatrixFile(char *matrixFile) {
     }
 
     // Read file and save matrix into MatrixMarket format
-    MatrixData *rawMatrixData  = read_matrix(f);
-    if (rawMatrixData == NULL) {
+    RawMatrix *rawMatrix = read_matrix(f);
+    if (rawMatrix == NULL) {
         perror("Error reading matrix data\n");
+
+        fclose(f);
+
+        return -1;
     }
 
-    MatT matrixNZ;
-    if (rawMatrixData) {
-        matrixNZ = rawMatrixData->NZ;
-    }
+    // Close FILE pointer
+    fclose(f);
 
     // Convert in CSR format:
-    CSRMatrix *csrMatrix = convert_to_CSR(rawMatrixData);
+    CSRMatrix *csrMatrix = convert_to_CSR(rawMatrix);
     if (csrMatrix == NULL) {
         perror("Error convert_to_CSR\n");
+
+        return -1;
     }
 
-    // Convert in ELLPACK format:
-    ELLPACKMatrix *ellpackMatrix = convert_to_ELLPACK(csrMatrix);
-    if (ellpackMatrix == NULL) {
-        perror("Error convert_to_ELLPACK\n");
-    }
-
-    ELLPACKMatrix *subEllpackMatrix = convert_to_ELLPACK_parametrized(csrMatrix, 0, HACK_SIZE);
-    if (subEllpackMatrix == NULL) {
-        perror("Error convert_to_ELLPACK_parametrized\n");
-    }
+    // Free file matrix
+    free_MatrixData(rawMatrix);
 
     // Convert to HLL format:
     HLLMatrix *hllMatrix = convert_to_HLL(csrMatrix, HACK_SIZE);
     if (hllMatrix == NULL) {
         perror("Error convert_to_HLL\n");
-    }
 
-    MatVal *csr_vector = create_vector(csrMatrix->N);
-    if (csr_vector == NULL) {
-        perror("Error create_vector\n");
-    }
+        free_CSRMatrix(csrMatrix);
 
-    csr_product(csrMatrix, csr_vector);
-
-    MatVal *hll_vector = create_vector(ellpackMatrix->N);
-    if (hll_vector == NULL) {
-        perror("Error create_vector\n");
-    }
-
-    hll_product(hllMatrix, hll_vector, matrixNZ);
-
-    ResultVector *hll_product = hll_serialProduct(hllMatrix, hll_vector);
-    if (hll_product == NULL) {
-        perror("Error hll_serialProduct\n");
-    }
-
-    /* Print for debugging:*/
-    // printf("\nMatrix: \n");
-    // print_matrix_data_verbose(rawMatrixData,false);
-    //
-    // printf("\nCSR Matrix: \n");
-    // print_csr_matrix_verbose(csrMatrix, false);
-    //
-    // printf("\nELLPACK Matrix: \n");
-    // print_ellpack_matrix_verbose(ellpackMatrix, false);
-    //
-    // printf("\nELLPACK Matrix reduced: \n");
-    // print_ellpack_matrix_verbose(subEllpackMatrix, false);
-    //
-    // printf("\nResult csr vector: \n");
-    // print_result_vector(csr_product);
-    //
-    // printf("\nResult hll vector: \n");
-    // print_result_vector(hll_product);
-
-    //Free memory:
-    free_MatrixData(rawMatrixData);
-
-    free_CSRMatrix(csrMatrix);
-    free_ELLPACKMatrix(ellpackMatrix);
-    free_ELLPACKMatrix(subEllpackMatrix);
-    free_HLLMatrix(hllMatrix);
-
-    //free_ResultVector(csr_product);
-    free_ResultVector(hll_product);
-
-    free(csr_vector);
-    free(hll_vector);
-
-    if (f && f != stdin) fclose(f);
-
-    return 0;
-}
-
-int debuggingFunction(char *matrixFile) {
-    FILE *f;
-
-    // Open Matrix Market file
-    if ((f = fopen(matrixFile, "r")) == NULL) {
-        perror("Error opening file\n");
         return -1;
-    }
-
-    // Read file and save matrix into MatrixMarket format
-    MatrixData *rawMatrixData  = read_matrix(f);
-    if (rawMatrixData == NULL) {
-        perror("Error reading matrix data\n");
-    }
-
-    MatT matrixNZ = 0;
-    if (rawMatrixData) {
-        matrixNZ = rawMatrixData->NZ;
-    }
-
-    // Convert in CSR format:
-    CSRMatrix *csrMatrix = convert_to_CSR(rawMatrixData);
-    if (csrMatrix == NULL) {
-        perror("Error convert_to_CSR\n");
-    }
-
-    ELLPACKMatrix_sol2 *subEllpackMatrix = convert_to_ELLPACK_sol2(csrMatrix, 0, HACK_SIZE);
-    if (subEllpackMatrix == NULL) {
-        perror("Error convert_to_ELLPACK_vectorized\n");
     }
 
     // Convert to HLL format:
-    HLLMatrix_sol2 *hllMatrix = convert_to_HLL_sol2(csrMatrix, HACK_SIZE);
-    if (hllMatrix == NULL) {
-        perror("Error convert_to_HLL\n");
-    }
+    HLLMatrixAligned *hllMatrixAligned = convert_to_HLL_aligned(csrMatrix, HACK_SIZE);
+    if (hllMatrixAligned == NULL) {
+        perror("Error convert_to_HLL_aligned\n");
 
-    MatVal *hll_vector = create_vector(hllMatrix->N);
-    if (hll_vector == NULL) {
-        perror("Error create_vector\n");
-    }
+        free_CSRMatrix(csrMatrix);
+        free_HLLMatrix(hllMatrix);
 
-    ResultVector *hll_product = NULL;
-    double start =0, end = 0;
-
-    // Serial solution
-    start = omp_get_wtime();
-    hll_product = hll_sol2_serialProduct(hllMatrix, hll_vector);
-    if (hll_product == NULL) {
-        perror("Error hll_SerialProduct\n");
         return -1;
     }
-    end = omp_get_wtime();
-    free_ResultVector(hll_product);
-    printf("hll_serial: GFLOPS: %lf\n", compute_flops(matrixNZ, end - start));
 
+    int num_threads = 3;
 
-    //OpemMP solution:
-    start = omp_get_wtime();
-    hll_product = hll_sol2_openmpProduct(hllMatrix, hll_vector);
-    if (hll_product == NULL) {
-        perror("Error hll_SerialProduct\n");
+    // Compute OpenMP calculus
+    if (!computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
+        free_CSRMatrix(csrMatrix);
+        free_HLLMatrix(hllMatrix);
+        free_HLLMatrixAligned(hllMatrixAligned);
+
         return -1;
     }
-    end = omp_get_wtime();
-    free_ResultVector(hll_product);
-    printf("hll_sol2_openmpProduct: GFLOPS: %f\n", compute_flops(matrixNZ, end - start));
 
-    //OpemMP solution 2:
-    start = omp_get_wtime();
-    hll_product = hll_sol2_openmpProduct_sol2(hllMatrix, hll_vector);
-    if (hll_product == NULL) {
-        perror("Error hll_SerialProduct\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(hll_product);
-    printf("hll_sol2_openmpProduct_sol2: GFLOPS: %f\n", compute_flops(matrixNZ, end - start));
+    free_CSRMatrix(csrMatrix);
+    free_HLLMatrix(hllMatrix);
+    free_HLLMatrixAligned(hllMatrixAligned);
 
-    // OpenMP solution 3: added some preprocessing
-    ThreadDataRange *tdr = matrixBalanceHLL_sol2(hllMatrix, 12);
-    start = omp_get_wtime();
-    hll_product = hll_sol2_openmpProduct_sol3(hllMatrix, hll_vector, 12, tdr);
-    if (hll_product == NULL) {
-        perror("Error hll_openmpProduct_sol2\n");
-        return -1;
-    }
-    end = omp_get_wtime();
-    free_ResultVector(hll_product);
-    //printf("hll_openmp3: Elapsed mean time = %lf\n", end - start);
-    printf("hll_sol2_openmpProduct_sol3: GFLOPS = %lf\n", compute_flops(matrixNZ, end - start));
-
-
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -366,13 +90,15 @@ int main(int argc, char *argv[]) {
 
         printf("Trying to execute via default folders\n");
         if (checkFolder(NULL, &folder)) {
-            perror("No available folder found. Please pass a folder path to program arguments or check if in the project folder exist 'matrix' or 'matrixTest' folder.");
+            perror(
+                "No available folder found. Please pass a folder path to program arguments or check if in the project folder exist 'matrix' or 'matrixTest' folder.");
 
             return -1;
         }
     } else {
         if (checkFolder(argv[1], &folder)) {
-            perror("No available folder found. Please pass a folder path to program arguments or check if in the project folder exist 'matrix' or 'matrixTest' folder.");
+            perror(
+                "No available folder found. Please pass a folder path to program arguments or check if in the project folder exist 'matrix' or 'matrixTest' folder.");
 
             return -1;
         }
@@ -413,17 +139,27 @@ int main(int argc, char *argv[]) {
         free(filePath);
     }
 #else
-    printf("TEST_SINGcsrLE_FILE else\n\n");
+    printf("TESTING ON SINGLE FILE\n\n");
 
-    debuggingFunction("../matrixTest/Cube_Coup_dt0.mtx");
-    //computeMatrixFile("../matrixTest/ns_example.mtx");
-    //computeMatrixFile("../matrixTest/Cube_Coup_dt0.mtx");
-    //computeMatrixFile("../matrix/Cube_Coup_dt0.mtx");
-    // computeMatrixFile("../matrix/ML_Laplace.mtx");
+    // computeMatrix("../matrixTest/ns_example.mtx");
+    // computeMatrix("../matrixTest/pat_example.mtx");
+    // computeMatrix("../matrixTest/sym_example.mtx");
+
+
+    printf("\n ../matrixTest/mhda416.mtx\n");
+    computeMatrix("../matrixTest/mhda416.mtx");
+
+    printf("\n ../matrixTest/cant.mtx\n");
+    computeMatrix("../matrixTest/cant.mtx");
+    // computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
 #endif
 
     closedir(dir);
     free(folder);
+
+    printf("\nEND");
+
+    printf("WSL test");
 
     return 0;
 }

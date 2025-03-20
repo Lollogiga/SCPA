@@ -11,8 +11,8 @@
 #include "./serialProduct.h"
 
 // Function for debugging:
-void print_matrix_data(MatrixData *matrix);
-void print_matrix_data_verbose(MatrixData *matrix, bool verbose);
+void print_matrix_data(RawMatrix *matrix);
+void print_matrix_data_verbose(RawMatrix *matrix, bool verbose);
 
 void print_csr_matrix(CSRMatrix *csr);
 void print_csr_matrix_verbose(CSRMatrix *csr, bool verbose);
