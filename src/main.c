@@ -118,7 +118,8 @@ int main(int argc, char *argv[]) {
 
     printf("Folder path: %s\n", folder);
 
-#ifndef TEST_SINGLE_FILE
+#ifndef TEST
+    struct dirent *entry;
     while ((entry = readdir(dir))) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;  // Skip loop iteration
@@ -134,7 +135,7 @@ int main(int argc, char *argv[]) {
         snprintf(filePath, strlen(folder) + strlen(entry->d_name) + 1, "%s%s", folder, entry->d_name);
         printf("FilePath: %s\n", filePath);
 
-        computeMatrixFile(filePath);
+        computeMatrix(filePath);
 
         free(filePath);
     }
@@ -157,9 +158,7 @@ int main(int argc, char *argv[]) {
     closedir(dir);
     free(folder);
 
-    printf("\nEND");
-
-    printf("WSL test");
+    printf("\nEND\n");
 
     return 0;
 }
