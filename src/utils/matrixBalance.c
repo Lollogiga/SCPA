@@ -44,13 +44,13 @@ ThreadDataRange *matrixBalanceCSR(CSRMatrix *csr, int numThreads) {
 }
 
 ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
-    if(!hll) {
+    if (!hll) {
         perror("hll_serialProduct: hll is NULL");
         return NULL;
     }
 
-    int *block_weights = calloc(hll->numBlocks, sizeof(MatT));
-    if (!block_weights){
+    int *block_weights = calloc(hll->numBlocks, sizeof(int));
+    if (!block_weights) {
         perror("matrixBalanceHLL: block_weights allocation error");
         return NULL;
     }
@@ -60,10 +60,11 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
         ELLPACKMatrix *ell = hll->blocks[i];
         for (MatT j = 0; j < ell->M; j++) {
             for (MatT k = 0; k < ell->MAXNZ; k++) {
-                (ell->AS[j][k] != 0) ? block_weights[i]++ : 0;
+                if (ell->AS[j][k] != 0) {
+                    block_weights[i]++;
+                }
             }
         }
-
         total_weight += block_weights[i];
     }
 
@@ -77,21 +78,29 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
         return NULL;
     }
 
-    // Assegnazione dei blocchi in base ai pesi
-    int current_weight = 0, thread_idx = 0;
-    threadRanges[0].start = 0;
+    int current_weight = 0;
+    int thread_idx = 0;
+    threadRanges[thread_idx].start = 0;
+
     for (int i = 0; i < hll->numBlocks; i++) {
         current_weight += block_weights[i];
+
         if (current_weight >= avg_weight_per_thread && thread_idx < numThreads - 1) {
-            threadRanges[thread_idx].end = i;
-            threadRanges[++thread_idx].start = i + 1;
+            threadRanges[thread_idx].end = i;  // Assegna l'ultimo blocco al thread corrente
+            thread_idx++;
+
+            // Controlla che non si esca dal numero massimo di thread
+            if (thread_idx < numThreads) {
+                threadRanges[thread_idx].start = i + 1;
+            }
             current_weight = 0;
         }
     }
+
+    // Assicurati che l'ultimo thread copra gli ultimi blocchi rimanenti
     threadRanges[numThreads - 1].end = hll->numBlocks - 1;
 
     free(block_weights);
-
     return threadRanges;
 }
 
