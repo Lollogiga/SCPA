@@ -64,7 +64,7 @@ int computeMatrix(const char *matrixFile) {
         return -1;
     }
 
-    int num_threads = 12;
+    int num_threads = 3;
 
     // Compute OpenMP calculus
     if (!computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {

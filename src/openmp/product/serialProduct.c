@@ -5,7 +5,7 @@
 #include "../../include/serialProduct.h"
 #include "../../include/createVectorUtil.h"
 
-ResultVector *csr_serialProduct(CSRMatrix *csr, MatVal *vector) {
+ResultVector *csr_serialProduct(CSRMatrix *csr, const MatVal *vector) {
     if (!csr) {
         perror("csr_serialProduct: csr is NULL");
         return NULL;
