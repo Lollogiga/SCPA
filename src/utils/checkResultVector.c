@@ -1,8 +1,7 @@
 #include <math.h>
-#include "../include/checkResultVector.h"
 
-#define TOLERANCE_REL 1e-6  // Tolleranza relativa
-#define ABS_TOLERANCE 1e-7  // Tolleranza assoluta
+#include "../include/checkResultVector.h"
+#include "../include/constants.h"
 
 // Funzione per calcolare il massimo valore assoluto tra due numeri
 double maxAbs(double a, double b) {
@@ -14,6 +13,12 @@ double maxAbs(double a, double b) {
  * @param serial_result Il risultato seriale.
  * @param parallel_result Il risultato parallelo.
  * @return Errore relativo medio se il check è passato, valore negativo se fallisce.
+ *
+ * Valori di ritorno:
+ * - `-1.0`: Errore critico - i vettori hanno lunghezze diverse.
+ * - `-2.0`: Errore - i risultati non coincidono entro la tolleranza.
+ * - `0.0`: I risultati coincidono perfettamente.
+ * - `> 0.0`: Media delle differenze relative tra i valori divergenti.
  */
 double checkResultVector(const ResultVector *serial_result, const ResultVector *parallel_result) {
     if (serial_result->len_vector != parallel_result->len_vector) {
@@ -26,14 +31,21 @@ double checkResultVector(const ResultVector *serial_result, const ResultVector *
 
     for (MatT i = 0; i < serial_result->len_vector; i++) {
         double maxAbsValue = maxAbs(serial_result->val[i], parallel_result->val[i]);
-        if (maxAbsValue < TOLERANCE_REL) {
-            maxAbsValue = TOLERANCE_REL;
+        if (maxAbsValue < REL_TOLERANCE) {
+            maxAbsValue = REL_TOLERANCE;
         }
 
         double currentDiff = fabs(serial_result->val[i] - parallel_result->val[i]);
         double relativeDiff = (currentDiff <= ABS_TOLERANCE) ? 0.0 : currentDiff / maxAbsValue;
 
-        if (relativeDiff > TOLERANCE_REL) {
+        // DEBUG, TODO: REMOVE
+        if (i == 62432 && 0) {
+            printf("maxAbsValue: %f\n", maxAbsValue);
+            printf("currentDiff: %f\n", currentDiff);
+            printf("relativeDiff: %f\n", relativeDiff);
+        }
+
+        if (relativeDiff > REL_TOLERANCE) {
             errors_found = 1;
         }
 

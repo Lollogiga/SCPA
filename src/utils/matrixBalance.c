@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdlib.h>
 
 #include "../include/matrixBalance.h"
@@ -25,7 +26,6 @@ ThreadDataRange *matrixBalanceCSR(CSRMatrix *csr, int numThreads) {
         return NULL;
     }
 
-    //TODO: Io peso che thread_idx debba essere 0 e non 1.
     int current_weight = 0, thread_idx = 0;
     threadRanges[0].start = 0;
     for (int i = 0; i < csr->M; i++) {
@@ -49,6 +49,16 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
         return NULL;
     }
 
+    if (hll->numBlocks == 0) {
+        perror("matrixBalanceHLL: no blocks in the matrix");
+        return NULL;
+    }
+
+    if (numThreads <= 0) {
+        perror("matrixBalanceHLL: invalid number of threads");
+        return NULL;
+    }
+
     int *block_weights = calloc(hll->numBlocks, sizeof(int));
     if (!block_weights) {
         perror("matrixBalanceHLL: block_weights allocation error");
@@ -68,7 +78,15 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
         total_weight += block_weights[i];
     }
 
-    int avg_weight_per_thread = total_weight / numThreads;
+    if (total_weight == 0) {
+        free(block_weights);
+        perror("matrixBalanceHLL: total_weight is zero, no work to distribute");
+        return NULL;
+    }
+
+    if (numThreads > hll->numBlocks) numThreads = hll->numBlocks;
+
+    int avg_weight_per_thread = (int)ceil((double)total_weight / numThreads);
 
     // Allocazione della struttura di assegnazione dei blocchi per thread
     ThreadDataRange *threadRanges = malloc(sizeof(ThreadDataRange) * numThreads);
@@ -107,6 +125,16 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
 ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrixAligned *hll, int numThreads) {
     if (!hll) {
         perror("hll_serialProduct: hll is NULL");
+        return NULL;
+    }
+
+    if (hll->numBlocks == 0) {
+        perror("matrixBalanceHLL: no blocks in the matrix");
+        return NULL;
+    }
+
+    if (numThreads <= 0) {
+        perror("matrixBalanceHLL: invalid number of threads");
         return NULL;
     }
 

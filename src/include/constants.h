@@ -8,6 +8,9 @@
 #define MAX_PRINT_ROW 20
 #define MAX_PRINT_COLUMN 20
 
+#define REL_TOLERANCE 1e-6  // Tolleranza relativa
+#define ABS_TOLERANCE 1e-7  // Tolleranza assoluta
+
 static const char MATRIX_FOLDER_DEFAULT[] = "../matrix/";
 static const char MATRIX_TEST_FOLDER_DEFAULT[] = "../matrixTest/";
 

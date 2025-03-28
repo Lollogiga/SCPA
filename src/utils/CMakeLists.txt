@@ -5,4 +5,6 @@ add_library(utils STATIC
         matrixFree.c
 )
 
+target_link_libraries(utils PRIVATE m)
+
 target_include_directories(utils PRIVATE ${CMAKE_SOURCE_DIR}/include)

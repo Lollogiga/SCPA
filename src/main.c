@@ -64,7 +64,7 @@ int computeMatrix(const char *matrixFile) {
         return -1;
     }
 
-    int num_threads = 3;
+    int num_threads = 1;
 
     // Compute OpenMP calculus
     if (!computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
@@ -142,16 +142,16 @@ int main(int argc, char *argv[]) {
 #else
     printf("TESTING ON SINGLE FILE\n\n");
 
-    // computeMatrix("../matrixTest/ns_example.mtx");
+    computeMatrix("../matrixTest/ns_example.mtx");
     // computeMatrix("../matrixTest/pat_example.mtx");
     // computeMatrix("../matrixTest/sym_example.mtx");
 
 
-    printf("\n ../matrixTest/mhda416.mtx\n");
-    computeMatrix("../matrixTest/mhda416.mtx");
+    // printf("\n ../matrixTest/mhda416.mtx\n");
+    // computeMatrix("../matrixTest/mhda416.mtx");
 
-    //printf("\n ../matrixTest/cant.mtx\n");
-    //computeMatrix("../matrixTest/cant.mtx");
+    printf("\n ../matrixTest/cant.mtx\n");
+    computeMatrix("../matrixTest/cant.mtx");
     // computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
 #endif
 
@@ -163,5 +163,4 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-
-
+// Tsaaasdf

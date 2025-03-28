@@ -37,7 +37,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     ResultVector *res = NULL;
     double start = 0, end = 0;
 
-    // OpenMP solution 1
+    // Csr solution 1
     start = omp_get_wtime();
     res = csr_openmpProduct_sol1(csrMatrix, vector, num_threads);
     if (res == NULL) {
@@ -46,7 +46,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in OpenMP solution 1 \n");
+        perror("Error checkResultVector in Csr solution 1 \n");
         free_ResultVector(res);
         return -1;
     }
@@ -54,7 +54,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     printf("csr_openmp1: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
 
-    // OpenMP solution 2
+    // Csr solution 2
     start = omp_get_wtime();
     res = csr_openmpProduct_sol2(csrMatrix, vector, num_threads);
     if (res == NULL) {
@@ -63,7 +63,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in OpenMP solution 2\n");
+        perror("Error checkResultVector in Csr solution 2\n");
         free_ResultVector(res);
         return -1;
     }
@@ -71,7 +71,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     printf("csr_openmp2: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
 
-    // OpenMP solution 3
+    // Csr solution 3
     start = omp_get_wtime();
     res = csr_openmpProduct_sol3(csrMatrix, vector, num_threads);
     if (res == NULL) {
@@ -80,7 +80,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in OpenMP solution 3\n");
+        perror("Error checkResultVector in Csr solution 3\n");
         free_ResultVector(res);
         return -1;
     }
@@ -88,7 +88,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     printf("csr_openmp3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
 
-    // OpenMP solution 4
+    // Csr solution 4
     start = omp_get_wtime();
     res = csr_openmpProduct_sol4(csrMatrix, vector, num_threads);
     if (res == NULL) {
@@ -97,7 +97,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in OpenMP solution 4\n");
+        perror("Error checkResultVector in Csr solution 4\n");
         free_ResultVector(res);
         return -1;
     }
@@ -105,17 +105,17 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     printf("csr_openmp4: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
 
-    // OpenMP solution 5
-    ThreadDataRange *tdr = matrixBalanceCSR(csrMatrix, 2);
+    // Csr solution 5
+    ThreadDataRange *tdr = matrixBalanceCSR(csrMatrix, num_threads);
     start = omp_get_wtime();
-    res = csr_openmpProduct_sol5(csrMatrix, vector, 2, tdr);
+    res = csr_openmpProduct_sol5(csrMatrix, vector, num_threads, tdr);
     if (res == NULL) {
         perror("Error csr_openmpProduct_sol4\n");
         return -1;
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in OpenMP solution 5\n");
+        perror("Error checkResultVector in Csr solution 5\n");
         free_ResultVector(res);
         return -1;
     }
@@ -148,57 +148,64 @@ ResultVector* hllProduct_Serial(HLLMatrix *hllMatrix, MatVal *vector) {
 int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, ResultVector *serial_res) {
     const MatT NZ = hllMatrix->NZ;
 
-    ResultVector *hll_product = NULL;
+    ResultVector *res = NULL;
     double start = 0, end = 0;
 
     // OpenMP solution 1
     start = omp_get_wtime();
-    hll_product = hll_openmpProduct_sol1(hllMatrix, vector, num_threads);
-    if (hll_product == NULL) {
+    res = hll_openmpProduct_sol1(hllMatrix, vector, num_threads);
+    if (res == NULL) {
         perror("Error hll_openmpProduct_sol1\n");
         return -1;
     }
     end = omp_get_wtime();
-    if (checkResultVector(serial_res,hll_product) < 0) {
+    if (checkResultVector(serial_res,res) < 0) {
         perror("Error checkResultVector Hll solution 1\n");
-        free_ResultVector(hll_product);
+        free_ResultVector(res);
         return -1;
     }
-    free_ResultVector(hll_product);
+    free_ResultVector(res);
     printf("hll_openmp1: GFLOPS = %lf\n", computeFlops(NZ, end - start));
-
 
     // OpenMP solution 2
     start = omp_get_wtime();
-    hll_product = hll_openmpProduct_sol2(hllMatrix, vector, num_threads);
-    if (hll_product == NULL) {
+    res = hll_openmpProduct_sol2(hllMatrix, vector, num_threads);
+    if (res == NULL) {
         perror("Error hll_openmpProduct_sol2\n");
         return -1;
     }
     end = omp_get_wtime();
-    if (checkResultVector(serial_res,hll_product) < 0) {
+    for (int i = 0; i < res->len_vector; i++) {
+        if (serial_res->val[i] != res->val[i]) printf("i: %d, [%f]-[%f]\n", i, serial_res->val[i], res->val[i]);
+    }
+    if (checkResultVector(serial_res,res) < 0) {
         perror("Error checkResultVector Hll solution 2\n");
-        free_ResultVector(hll_product);
+        free_ResultVector(res);
         return -1;
     }
-    free_ResultVector(hll_product);
+    free_ResultVector(res);
     printf("hll_openmp2: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
     // OpenMP solution 3: added some preprocessing
     ThreadDataRange *tdr = matrixBalanceHLL(hllMatrix, num_threads);
     start = omp_get_wtime();
-    hll_product = hll_openmpProduct_sol3(hllMatrix, vector, num_threads, tdr);
-    if (hll_product == NULL) {
+    res = hll_openmpProduct_sol3(hllMatrix, vector, num_threads, tdr);
+    if (res == NULL) {
         perror("Error hll_openmpProduct_sol2\n");
         return -1;
     }
     end = omp_get_wtime();
-    if (checkResultVector(serial_res,hll_product) < 0) {
+    printf("Matrix lenght: %d\n", hllMatrix->NZ);
+    for (int i = 0; i < res->len_vector; i++) {
+        if (serial_res->val[i] != res->val[i]) printf("i: %d, [%f]-[%f]\n", i, serial_res->val[i], res->val[i]);
+    }
+    double check = checkResultVector(serial_res,res);
+    if (check < 0) {
         perror("Error checkResultVector Hll solution 3\n");
-        free_ResultVector(hll_product);
+        free_ResultVector(res);
         return -1;
     }
-    free_ResultVector(hll_product);
+    free_ResultVector(res);
     printf("hll_openmp3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
     return 0;
