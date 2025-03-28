@@ -1,5 +1,5 @@
 # Trova CUDA e fornisci la versione minima
-find_package(CUDA 12.3 REQUIRED)
+find_package(CUDA REQUIRED)
 
 # Imposta l'architettura target per la tua GPU (sm_75 per la tua Quadro RTX 5000)
 set(CC 75)
