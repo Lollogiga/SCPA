@@ -5,6 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
+set(CMAKE_CUDA_FLAGS "-O3 -arch=sm_75 -lineinfo -Xcompiler=-Wall")
 
 add_definitions(-DTEST)
 
@@ -40,6 +41,8 @@ target_include_directories(SCPA PRIVATE ${CMAKE_SOURCE_DIR}/include)
 # Stampa un messaggio di configurazione
 if (ENABLE_CUDA)
     message(STATUS "CUDA support enabled")
+    message(STATUS "CUDA Version: ${CUDA_VERSION}")
+    message(STATUS "CUDA Compiler: ${CMAKE_CUDA_COMPILER}")
 else()
     message(STATUS "CUDA support disabled")
 endif()
