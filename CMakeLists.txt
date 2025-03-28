@@ -9,7 +9,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
 add_definitions(-DTEST)
 
 # Opzione per abilitare/disabilitare CUDA
-option(ENABLE_CUDA "Enable CUDA support" OFF)
+option(ENABLE_CUDA "Enable CUDA support" ON)
 
 # Includi sottodirectory
 add_subdirectory(src/utils)

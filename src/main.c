@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "./include/createVectorUtil.h"
+#include "./include/computeCUDA.cuh"
 #include "./include/fileUtils.h"
 #include "./include/matrixFree.h"
 #include "./include/matrixPreProcessing.h"
@@ -64,7 +65,7 @@ int computeMatrix(const char *matrixFile) {
         return -1;
     }
 
-    int num_threads = 12;
+    int num_threads = 39;
 
     // Compute OpenMP calculus
     if (!computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
@@ -150,7 +151,7 @@ int main(int argc, char *argv[]) {
     // printf("\n ../matrixTest/mhda416.mtx\n");
     // computeMatrix("../matrixTest/mhda416.mtx");
 
-    printf("\n ../matrixTest/cant.mtx\n");
+    printf("\n../matrixTest/cant.mtx\n");
     computeMatrix("../matrixTest/cant.mtx");
     // computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
 #endif
@@ -160,7 +161,7 @@ int main(int argc, char *argv[]) {
 
     printf("\nEND\n");
 
+    computeCUDA();
+
     return 0;
 }
-
-// Tsaaasdf
