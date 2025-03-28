@@ -122,7 +122,6 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     free_ResultVector(res);
     printf("csr_openmp5: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
-
     return 0;
 }
 
@@ -175,9 +174,6 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
         return -1;
     }
     end = omp_get_wtime();
-    for (int i = 0; i < res->len_vector; i++) {
-        if (serial_res->val[i] != res->val[i]) printf("i: %d, [%f]-[%f]\n", i, serial_res->val[i], res->val[i]);
-    }
     if (checkResultVector(serial_res,res) < 0) {
         perror("Error checkResultVector Hll solution 2\n");
         free_ResultVector(res);
@@ -195,12 +191,7 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
         return -1;
     }
     end = omp_get_wtime();
-    printf("Matrix lenght: %d\n", hllMatrix->NZ);
-    for (int i = 0; i < res->len_vector; i++) {
-        if (serial_res->val[i] != res->val[i]) printf("i: %d, [%f]-[%f]\n", i, serial_res->val[i], res->val[i]);
-    }
-    double check = checkResultVector(serial_res,res);
-    if (check < 0) {
+    if (checkResultVector(serial_res,res) < 0) {
         perror("Error checkResultVector Hll solution 3\n");
         free_ResultVector(res);
         return -1;
@@ -250,7 +241,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
         return -1;
     }
     free_ResultVector(hll_product);
-    printf("hllAligned_openmpProduct: GFLOPS: %f\n", computeFlops(NZ, end - start));
+    printf("hllAligned_openmp1: GFLOPS: %f\n", computeFlops(NZ, end - start));
 
     //OpemMP solution 2:
     start = omp_get_wtime();
@@ -266,7 +257,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
         return -1;
     }
     free_ResultVector(hll_product);
-    printf("hllAligned_openmpProduct_sol2: GFLOPS: %f\n", computeFlops(NZ, end - start));
+    printf("hllAligned_openmp2: GFLOPS: %f\n", computeFlops(NZ, end - start));
 
     // OpenMP solution 3: added some preprocessing
     ThreadDataRange *tdr = matrixBalanceHLL_sol2(hllMatrix, num_threads);
@@ -283,8 +274,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
         return -1;
     }
     free_ResultVector(hll_product);
-    //printf("hll_openmp3: Elapsed mean time = %lf\n", end - start);
-    printf("hllAligned_openmpProduct_sol3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
+    printf("hllAligned_openmp3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
     return 0;
 }

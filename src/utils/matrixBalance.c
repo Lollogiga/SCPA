@@ -32,7 +32,7 @@ ThreadDataRange *matrixBalanceCSR(CSRMatrix *csr, int numThreads) {
         current_weight += row_weights[i];
         if (current_weight >= weight_per_thread && thread_idx < numThreads) {
             threadRanges[thread_idx].end = i;
-            threadRanges[++thread_idx].start = i + 1;
+            threadRanges[++thread_idx].start = i;
             current_weight = 0;
         }
     }
@@ -84,17 +84,17 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
         return NULL;
     }
 
-    if (numThreads > hll->numBlocks) numThreads = hll->numBlocks;
-
     int avg_weight_per_thread = (int)ceil((double)total_weight / numThreads);
 
     // Allocazione della struttura di assegnazione dei blocchi per thread
-    ThreadDataRange *threadRanges = malloc(sizeof(ThreadDataRange) * numThreads);
+    ThreadDataRange *threadRanges = calloc(numThreads, sizeof(ThreadDataRange));
     if (!threadRanges) {
         perror("matrixBalanceHLL: threadRanges allocation error");
         free(block_weights);
         return NULL;
     }
+
+    if (numThreads > hll->numBlocks) numThreads = hll->numBlocks;
 
     int current_weight = 0;
     int thread_idx = 0;
@@ -109,14 +109,14 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
 
             // Controlla che non si esca dal numero massimo di thread
             if (thread_idx < numThreads) {
-                threadRanges[thread_idx].start = i + 1;
+                threadRanges[thread_idx].start = i;
             }
             current_weight = 0;
         }
     }
 
     // Assicurati che l'ultimo thread copra gli ultimi blocchi rimanenti
-    threadRanges[numThreads - 1].end = hll->numBlocks - 1;
+    threadRanges[numThreads - 1].end = hll->numBlocks;
 
     free(block_weights);
     return threadRanges;
@@ -144,6 +144,8 @@ ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrixAligned *hll, int numThreads) {
         perror("matrixBalanceHLL: block_weights allocation error");
         return NULL;
     }
+
+    if (numThreads > hll->numBlocks) numThreads = hll->numBlocks;
 
     int total_weight = 0;
 
@@ -181,11 +183,11 @@ ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrixAligned *hll, int numThreads) {
         current_weight += block_weights[i];
         if (current_weight >= avg_weight_per_thread && thread_idx < numThreads - 1) {
             threadRanges[thread_idx].end = i;
-            threadRanges[++thread_idx].start = i + 1;
+            threadRanges[++thread_idx].start = i;
             current_weight = 0;
         }
     }
-    threadRanges[numThreads - 1].end = hll->numBlocks - 1;
+    threadRanges[numThreads - 1].end = hll->numBlocks;
 
     free(block_weights);  // Dealloca il vettore dei pesi
 
