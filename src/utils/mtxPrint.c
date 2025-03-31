@@ -1,8 +1,6 @@
-//
-// Created by buniy on 28/02/2025.
-//
+#include <stdio.h>
 
-#include "../include/matrixPrint.h"
+#include "../include/mtxPrint.h"
 #include "../include/constants.h"
 
 void print_matrix_data(RawMatrix *matrix) {

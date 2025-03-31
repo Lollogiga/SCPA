@@ -3,13 +3,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "./include/createVectorUtil.h"
-#include "./include/computeCUDA.cuh"
 #include "./include/fileUtils.h"
-#include "./include/matrixFree.h"
-#include "./include/matrixPreProcessing.h"
-#include "./include/computeOpenMP.h"
-
+#include "./include/mtxFree.h"
+#include "./include/preprocessing.h"
+#include "./include/cuda/computeCUDA.cuh"
+#include "./include/openmp/computeOpenMP.h"
 
 int computeMatrix(const char *matrixFile) {
     FILE *f;
@@ -65,10 +63,24 @@ int computeMatrix(const char *matrixFile) {
         return -1;
     }
 
-    int num_threads = 39;
+    int num_threads = 12;
+    printf("\n\033[32;7m# of threads:\033[0;32m %d\033[0m\n", num_threads);
+
+    printf("\n-------------- COMPUTING OpenMP --------------\n");
 
     // Compute OpenMP calculus
-    if (!computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
+    if (computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
+        perror("Error computeOpenMP\n");
+        free_CSRMatrix(csrMatrix);
+        free_HLLMatrix(hllMatrix);
+        free_HLLMatrixAligned(hllMatrixAligned);
+
+        return -1;
+    }
+
+    printf("\n-------------- COMPUTING CUDA --------------\n");
+
+    if (computeCUDA(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
         free_CSRMatrix(csrMatrix);
         free_HLLMatrix(hllMatrix);
         free_HLLMatrixAligned(hllMatrixAligned);
@@ -91,8 +103,7 @@ int main(int argc, char *argv[]) {
 
         printf("Trying to execute via default folders\n");
         if (checkFolder(NULL, &folder)) {
-            perror(
-                "No available folder found. Please pass a folder path to program arguments or check if in the project folder exist 'matrix' or 'matrixTest' folder.");
+            perror("No available folder found. Please pass a folder path to program arguments or check if in the project folder exist 'matrix' or 'matrixTest' folder.");
 
             return -1;
         }
@@ -160,8 +171,6 @@ int main(int argc, char *argv[]) {
     free(folder);
 
     printf("\nEND\n");
-
-    computeCUDA();
 
     return 0;
 }

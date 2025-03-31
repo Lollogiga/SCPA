@@ -1,14 +1,10 @@
-//
-// Created by buniy on 28/02/2025.
-//
-
 #ifndef MATRIXPRINT_H
 #define MATRIXPRINT_H
 
 #include <stdbool.h>
 
-#include "./matrixPreProcessing.h"
-#include "./serialProduct.h"
+#include "./mtxStructs.h"
+#include "./result.h"
 
 // Function for debugging:
 void print_matrix_data(RawMatrix *matrix);

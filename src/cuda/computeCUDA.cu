@@ -1,8 +1,8 @@
+#include <cstdio>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <stdio.h>
 
-#include "../include/computeCUDA.cuh"
+#include "../include/mtxStructs.h"
 
 __global__ void cudaKernel(int *d_data, int N) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -70,10 +70,16 @@ int prova() {
     return 0;
 }
 
-extern "C" int computeCUDA() {
-    int i = prova();
+extern "C" int computeCUDA(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *hllMatrixAligned, int num_threads) {
+    // int res = 0;
 
-    printf("prova return: %d\n", i);
+    // MatVal *vector = create_vector(csrMatrix->N);
+    // if (vector == NULL) {
+    //     perror("Error create_vector\n");
+    //
+    //     return -1;
+    // }
+
 
     return 0;
 }

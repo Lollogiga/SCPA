@@ -1,12 +1,8 @@
-//
-// Created by buniy on 28/02/2025.
-//
-
 #ifndef MATRICDEALLOC_H
 #define MATRICDEALLOC_H
 
-#include "./matrixPreProcessing.h"
-#include "./serialProduct.h"
+#include "./mtxStructs.h"
+#include "./result.h"
 
 // Function for de-allocation:
 void free_MatrixData(RawMatrix *matrix);

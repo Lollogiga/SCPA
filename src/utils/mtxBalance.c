@@ -1,8 +1,9 @@
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 
-#include "../include/matrixBalance.h"
-#include "../include/matrixPreProcessing.h"
+#include "../include/mtxBalance.h"
+#include "../include/mtxStructs.h"
 
 ThreadDataRange *matrixBalanceCSR(CSRMatrix *csr, int numThreads) {
     if (!csr) {

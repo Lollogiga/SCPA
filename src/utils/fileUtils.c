@@ -1,7 +1,3 @@
-//
-// Created by buniy on 03/03/2025.
-//
-
 #include "../include/fileUtils.h"
 
 #include "../include/constants.h"

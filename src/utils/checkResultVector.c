@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdio.h>
 
 #include "../include/checkResultVector.h"
 #include "../include/constants.h"

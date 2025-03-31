@@ -1,5 +1,7 @@
-#include "../include/createVectorUtil.h"
+#include <stdio.h>
 #include <stdlib.h>
+
+#include "../include/createVector.h"
 
 MatVal *create_vector(MatT len_vector) {
     // Create vector for matrix vector multiply:

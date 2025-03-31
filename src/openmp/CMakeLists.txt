@@ -2,10 +2,9 @@ find_package(OpenMP REQUIRED)
 
 add_library(openmp STATIC
         computeOpenMP.c
-        createVectorUtil.c
-        product/openmpCSR.c
-        product/openmpHLL.c
-        product/serialProduct.c
+        product/CSR.c
+        product/HLL.c
+        product/Serial.c
 )
 
 target_link_libraries(openmp PUBLIC utils)

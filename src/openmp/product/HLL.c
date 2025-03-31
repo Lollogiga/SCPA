@@ -1,11 +1,11 @@
 #include <omp.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "../../include/matrixBalance.h"
-#include "../../include/matrixPreProcessing.h"
-#include "../../include/openmpHLL.h"
+#include "../../include/mtxBalance.h"
+#include "../../include/openmp/HLL.h"
 
 
 void *ellpack_openmpProduct(ELLPACKMatrix *ell, const MatVal *vector, MatVal *result) {

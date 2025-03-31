@@ -4,7 +4,8 @@
 #include <string.h>
 
 #include "../include/constants.h"
-#include "../include/matrixPreProcessing.h"
+#include "../include/preprocessing.h"
+#include "../include/mtxStructs.h"
 #include "../include/mmio.h"
 
 RawMatrix *read_matrix(FILE *f) {

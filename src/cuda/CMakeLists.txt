@@ -6,9 +6,9 @@ set(CC 75)
 
 add_library(cuda STATIC
         computeCUDA.cu
-        cudaCSR.cu
-        cudaHLL.cu
-        cudaUtils.cu
+        Utils.cu
+        product/CSR.cu
+        product/HLL.cu
 )
 
 # Linka la libreria 'utils'

@@ -23,10 +23,7 @@ if (ENABLE_CUDA)
 endif()
 
 # Crea eseguibile principale
-add_executable(SCPA src/main.c
-        src/utils/checkResultVector.c
-        src/include/checkResultVector.h
-)
+add_executable(SCPA src/main.c)
 
 # Linka le librerie
 target_link_libraries(SCPA PRIVATE utils preprocessing openmp)

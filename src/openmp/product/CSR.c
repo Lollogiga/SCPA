@@ -1,13 +1,11 @@
-//
-// Created by buniy on 07/03/2025.
-//
-
 #include <omp.h>
+#include <stdio.h>
 
 #include "../../include/constants.h"
-#include "../../include/matrixBalance.h"
-#include "../../include/matrixPreProcessing.h"
-#include "../../include/openmpCSR.h"
+#include "../../include/createVector.h"
+#include "../../include/mtxBalance.h"
+#include "../../include/result.h"
+#include "../../include/openmp/CSR.h"
 
 ResultVector *csr_openmpProduct_sol1(CSRMatrix *csr, MatVal *vector, int num_threads) {
     if (!csr) {

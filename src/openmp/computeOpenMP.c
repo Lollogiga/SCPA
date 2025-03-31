@@ -1,14 +1,11 @@
-//
-// Created by buniy on 20/03/2025.
-//
-
 #include <omp.h>
+#include <stdio.h>
 
-#include "../include/matrixBalance.h"
-#include "../include/matrixFree.h"
-#include "../include/openmpCSR.h"
-#include "../include/openmpHLL.h"
-#include "../include/serialProduct.h"
+#include "../include/mtxBalance.h"
+#include "../include/mtxFree.h"
+#include "../include/openmp/CSR.h"
+#include "../include/openmp/HLL.h"
+#include "../include/openmp/Serial.h"
 #include "../include/flops.h"
 #include "../include/checkResultVector.h"
 
@@ -280,6 +277,8 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
 }
 
 int computeOpenMP(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *hllMatrixAligned, int num_threads) {
+    int res = 0;
+
     MatVal *vector = create_vector(csrMatrix->N);
     if (vector == NULL) {
         perror("Error create_vector\n");
@@ -288,16 +287,19 @@ int computeOpenMP(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *
     }
 
     ResultVector *csr_product = csrProduct_Serial(csrMatrix, vector);
-    csrProduct_OpenMP(csrMatrix, vector, num_threads, csr_product);
+    res = csrProduct_OpenMP(csrMatrix, vector, num_threads, csr_product);
     free_ResultVector(csr_product);
+    if (res) return -1;
 
     ResultVector *hll_product = hllProduct_Serial(hllMatrix, vector);
-    hllProduct_OpenMP(hllMatrix, vector, num_threads, hll_product);
+    res = hllProduct_OpenMP(hllMatrix, vector, num_threads, hll_product);
     free_ResultVector(hll_product);
+    if (res) return -1;
 
     ResultVector *hllAligned_product = hllAlignedProduct_Serial(hllMatrixAligned, vector);
-    hllAlignedProduct_OpenMP(hllMatrixAligned, vector, num_threads, hllAligned_product);
+    res = hllAlignedProduct_OpenMP(hllMatrixAligned, vector, num_threads, hllAligned_product);
     free_ResultVector(hllAligned_product);
+    if (res) return -1;
 
     return 0;
 }

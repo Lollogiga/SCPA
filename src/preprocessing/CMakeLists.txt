@@ -1,5 +1,5 @@
 add_library(preprocessing STATIC
-        matrixPreProcessing.c
+        preprocessing.c
         mmio.c
 )
 

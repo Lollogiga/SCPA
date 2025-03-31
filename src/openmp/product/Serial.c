@@ -1,9 +1,10 @@
 #include <stdlib.h>
 
 #include "../../include/constants.h"
-#include "../../include/matrixPreProcessing.h"
-#include "../../include/serialProduct.h"
-#include "../../include/createVectorUtil.h"
+#include "../../include/mtxStructs.h"
+#include "../../include/preprocessing.h"
+#include "../../include/openmp/Serial.h"
+#include "../../include/createVector.h"
 
 ResultVector *csr_serialProduct(CSRMatrix *csr, const MatVal *vector) {
     if (!csr) {

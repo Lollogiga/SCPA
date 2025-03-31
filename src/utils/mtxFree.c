@@ -1,10 +1,7 @@
-//
-// Created by buniy on 28/02/2025.
-//
-
 #include <stdlib.h>
 
-#include "../include/matrixFree.h"
+#include "../include/mtxStructs.h"
+#include "../include/result.h"
 
 // Functions for deallocation:
 void free_MatrixData(RawMatrix *matrix) {

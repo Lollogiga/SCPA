@@ -1,11 +1,7 @@
-//
-// Created by buniy on 10/03/2025.
-//
-
 #ifndef MATRIXBALANCE_H
 #define MATRIXBALANCE_H
 
-#include "../include/matrixPreProcessing.h"
+#include "../include/preprocessing.h"
 
 typedef struct {
     MatT start;

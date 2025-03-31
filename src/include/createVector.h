@@ -1,8 +1,8 @@
 #ifndef UTILSPRODUCT_H
 #define UTILSPRODUCT_H
 
-#include "./matrixPreProcessing.h"
-#include "./serialProduct.h"
+#include "./constants.h"
+#include "./result.h"
 
 MatVal *create_vector(MatT len_vector);
 ResultVector *create_result_vector(MatT len_vector);

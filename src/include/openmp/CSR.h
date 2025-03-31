@@ -1,11 +1,9 @@
-//
-// Created by buniy on 07/03/2025.
-//
-
 #ifndef OPENMPPRODUCT_H
 #define OPENMPPRODUCT_H
 
-#include "../include/createVectorUtil.h"
+#include "../mtxBalance.h"
+#include "../mtxStructs.h"
+#include "../result.h"
 
 ResultVector *csr_openmpProduct_sol1(CSRMatrix *csr, MatVal *vector, int num_threads);
 
