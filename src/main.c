@@ -63,7 +63,7 @@ int computeMatrix(const char *matrixFile) {
         return -1;
     }
 
-    int num_threads = 12;
+    int num_threads = 20;
     printf("\n\033[32;7m# of threads:\033[0;32m %d\033[0m\n", num_threads);
 
     printf("\n-------------- COMPUTING OpenMP --------------\n");
