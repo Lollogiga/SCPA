@@ -8,6 +8,7 @@
 #include "../include/openmp/Serial.h"
 #include "../include/flops.h"
 #include "../include/checkResultVector.h"
+#include "../include/createVector.h"
 
 ResultVector* csrProduct_Serial(CSRMatrix *csrMatrix, const MatVal *vector) {
     const MatT NZ = csrMatrix->NZ;
