@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "../include/openmp/Serial.h"
+#include "../include/cuda/Serial.cuh"
 #include "../include/checkResultVector.h"
 #include "../include/mtxStructs.h"
 #include "../include/flops.h"
@@ -24,34 +25,13 @@
 #define BLOCK_SIZE 1024 // Il server ha a disposizione al massimo 1024 thread attivi contemporaneamente
 #define MAX_NZ_PER_BLOCK 1024
 
-// CSR serial CUDA
-__global__ void spmv_csr_serial(int M, MatT *IRP, MatT *JA, MatVal *AS, MatVal *x, MatVal *y) {
-    // Ogni thread calcola il prodotto per una singola riga (seriale)
-    int row = 0;  // Solo un thread, quindi lavoriamo su una riga alla volta
-
-    if (row < M) {
-        MatVal sum = 0.0f;
-        int row_start = IRP[row];
-        int row_end = IRP[row + 1];
-
-        // Calcola il prodotto matrice-vettore per la riga
-        for (int i = row_start; i < row_end; i++) {
-            MatT col = JA[i];  // Colonna dell'elemento non nullo
-            MatVal val = AS[i];  // Valore non nullo
-            sum += val * x[col];  // Prodotto scala matrice-vettore
-        }
-
-        y[row] = sum;  // Risultato del prodotto per la riga
-    }
-}
-
 // Test 1
-__global__ void spmv_csr_kernel_sol1(int M, MatT *IRP, MatT *JA, MatVal *AS, MatVal *x, MatVal *y) {
+__global__ void spmv_csr_kernel_sol1(CSRMatrix *csr, MatVal *x, MatVal *y) {
     int row = blockIdx.x * blockDim.x + threadIdx.x;
-    if (row < M) {
+    if (row < csr->M) {
         MatVal sum = 0.0;
-        for (int j = IRP[row]; j < IRP[row + 1]; j++) {
-            sum += AS[j] * x[JA[j]];
+        for (int j = csr->IRP[row]; j < csr->IRP[row + 1]; j++) {
+            sum += csr->AS[j] * x[csr->JA[j]];
         }
         y[row] = sum;
     }
@@ -65,18 +45,18 @@ __device__ inline MatVal warpReduceSum(MatVal val) {
     return val;
 }
 
-__global__ void spmv_csr_warp(int M, MatT *IRP, MatT *JA, MatVal *AS, MatVal *x, MatVal *y) {
+__global__ void spmv_csr_warp(CSRMatrix *csr, MatVal *x, MatVal *y) {
     int warp_id = blockIdx.x * (blockDim.x / WARP_SIZE) + threadIdx.x / WARP_SIZE;  // Warp globale
     int lane = threadIdx.x % WARP_SIZE;  // ID del thread nel warp
 
-    if (warp_id < M) {  // Ogni warp lavora su una riga
+    if (warp_id < csr->M) {  // Ogni warp lavora su una riga
         MatVal sum = 0.0;
-        int row_start = IRP[warp_id];
-        int row_end = IRP[warp_id + 1];
+        int row_start = csr->IRP[warp_id];
+        int row_end = csr->IRP[warp_id + 1];
 
         // Ogni thread nel warp processa un pezzo della riga
         for (int i = row_start + lane; i < row_end; i += WARP_SIZE) {
-            sum += AS[i] * x[JA[i]];
+            sum += csr->AS[i] * x[csr->JA[i]];
         }
 
         // Riduzione della somma tra i thread del warp
@@ -90,7 +70,7 @@ __global__ void spmv_csr_warp(int M, MatT *IRP, MatT *JA, MatVal *AS, MatVal *x,
 }
 
 // Test 3
-__global__ void spmv_csr_shared(int M, MatT *IRP, MatT *JA, MatVal *AS, MatVal *x, MatVal *y) {
+__global__ void spmv_csr_shared(CSRMatrix *csr, MatVal *x, MatVal *y) {
     __shared__ MatVal shared_AS[MAX_NZ_PER_BLOCK];  // Memoria condivisa per i valori della matrice
     __shared__ MatT shared_JA[MAX_NZ_PER_BLOCK];   // Memoria condivisa per gli indici di colonna
 
@@ -98,17 +78,17 @@ __global__ void spmv_csr_shared(int M, MatT *IRP, MatT *JA, MatVal *AS, MatVal *
     int lane = threadIdx.x % WARP_SIZE;
     int local_tid = threadIdx.x;
 
-    if (warp_id >= M) return;
+    if (warp_id >= csr->M) return;
 
     // Lettura dell'intervallo della riga
-    int row_start = IRP[warp_id];
-    int row_end = IRP[warp_id + 1];
+    int row_start = csr->IRP[warp_id];
+    int row_end = csr->IRP[warp_id + 1];
     int row_size = row_end - row_start;
 
     // Caricamento in memoria condivisa
     for (int i = local_tid; i < row_size; i += BLOCK_SIZE) {
-        shared_AS[i] = AS[row_start + i];
-        shared_JA[i] = JA[row_start + i];
+        shared_AS[i] = csr->AS[row_start + i];
+        shared_JA[i] = csr->JA[row_start + i];
     }
     __syncthreads();  // Sincronizziamo per garantire che i dati siano caricati
 
@@ -132,40 +112,6 @@ __global__ void spmv_csr_shared(int M, MatT *IRP, MatT *JA, MatVal *AS, MatVal *
     }
 }
 
-// Test 4
-// NOTA: questa soluzione è completamente errata!
-__global__ void spmv_csr_kernel_memory_shared(int M, MatT *IRP, MatT *JA, MatVal *AS, MatVal *x, MatVal *y) {
-    int row = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (row < M) {
-        // Memoria condivisa per una riga
-        __shared__ MatT sharedJA[BLOCK_SIZE];
-        __shared__ MatVal sharedAS[BLOCK_SIZE];
-
-        int startIdx = IRP[row];
-        int endIdx = IRP[row + 1];
-
-        // Carica i dati nella memoria condivisa
-        for (int j = startIdx + threadIdx.x; j < endIdx; j += blockDim.x) {
-            sharedJA[threadIdx.x] = JA[j];
-            sharedAS[threadIdx.x] = AS[j];
-        }
-
-        // Sincronizza i thread
-        __syncthreads();
-
-        MatVal sum = 0.0;
-        // Calcola il prodotto scalare usando la memoria condivisa
-        for (int j = startIdx; j < endIdx; ++j) {
-            int col = sharedJA[j - startIdx];
-            MatVal val = sharedAS[j - startIdx];
-            sum += val * x[col];
-        }
-
-        y[row] = sum;
-    }
-}
-
 // Test 5
 __global__ void find_max_nnz_per_row(int M, int *IRP, int *max_nnz) {
     __shared__ int local_max;
@@ -181,16 +127,16 @@ __global__ void find_max_nnz_per_row(int M, int *IRP, int *max_nnz) {
     if (threadIdx.x == 0) atomicMax(max_nnz, local_max);
 }
 
-__global__ void spmv_csr_kernel_shared_memery_2(int M, int *IRP, int *JA, float *AS, float *x, float *y, int max_nnz) {
+__global__ void spmv_csr_kernel_shared_memery_2(CSRMatrix *csr, float *x, float *y, int max_nnz) {
     int row = blockIdx.x;  // Un blocco per riga
     int tid = threadIdx.x; // Thread all'interno del blocco
 
-    int start = IRP[row];
-    int end = IRP[row + 1];
+    int start = csr->IRP[row];
+    int end = csr->IRP[row + 1];
 
     float sum = 0.0f;
     for (int j = start + tid; j < end; j += blockDim.x) {
-        sum += AS[j] * x[JA[j]];
+        sum += csr->AS[j] * x[csr->JA[j]];
     }
 
     // Riduzione parallela nella memoria condivisa
@@ -211,12 +157,41 @@ __global__ void spmv_csr_kernel_shared_memery_2(int M, int *IRP, int *JA, float 
     }
 }
 
+CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr) {
+    // 1. Crea struttura temporanea su host
+    CSRMatrix d_csr;
+    d_csr.M = h_csr->M;
+    d_csr.N = h_csr->N;
+    d_csr.NZ = h_csr->NZ;
+
+    // 2. Alloca array su device e copia i contenuti
+    cudaMalloc((void**)&d_csr.IRP, (h_csr->M + 1) * sizeof(MatT));
+    cudaMemcpy(d_csr.IRP, h_csr->IRP, (h_csr->M + 1) * sizeof(MatT), cudaMemcpyHostToDevice);
+
+    cudaMalloc((void**)&d_csr.JA, h_csr->NZ * sizeof(MatT));
+    cudaMemcpy(d_csr.JA, h_csr->JA, h_csr->NZ * sizeof(MatT), cudaMemcpyHostToDevice);
+
+    cudaMalloc((void**)&d_csr.AS, h_csr->NZ * sizeof(MatVal));
+    cudaMemcpy(d_csr.AS, h_csr->AS, h_csr->NZ * sizeof(MatVal), cudaMemcpyHostToDevice);
+
+    // 3. Alloca CSRMatrix su device
+    CSRMatrix *d_csr_ptr;
+    cudaMalloc((void**)&d_csr_ptr, sizeof(CSRMatrix));
+
+    // 4. Copia la struttura su device
+    cudaMemcpy(d_csr_ptr, &d_csr, sizeof(CSRMatrix), cudaMemcpyHostToDevice);
+
+    return d_csr_ptr;
+}
+
 int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     float elapsedTime;
+
+    CSRMatrix *d_csr_ptr = uploadCSRToDevice(h_csr);
 
     CSRMatrix d_csr;
     cudaMalloc((void**)&d_csr.IRP, (h_csr->M + 1) * sizeof(MatT));
@@ -248,7 +223,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     cudaMalloc(&d_y, h_csr->M * sizeof(MatVal));
 
     cudaEventRecord(start);
-    spmv_csr_serial<<<1, 1>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
+    spmv_csr_serial<<<1, 1>>>(d_csr_ptr, d_x, d_y);
     cudaDeviceSynchronize();
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -256,33 +231,34 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     printf("CudaSerial: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
 
     cudaEventRecord(start);
-    spmv_csr_kernel_sol1<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
+    spmv_csr_kernel_sol1<<<blocksPerGrid, threadsPerBlock>>>(d_csr_ptr, d_x, d_y);
     cudaDeviceSynchronize();
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&elapsedTime, start, stop);
     printf("CudaSol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
 
-    cudaEventRecord(start);
-    spmv_csr_kernel_memory_shared<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
-    cudaDeviceSynchronize();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    printf("CudaSol1-MS: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
+    // NOTA: utilizzare lo schema sotto per controllare la correttezza!
+    // cudaEventRecord(start);
+    // spmv_csr_kernel_memory_shared<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
+    // cudaDeviceSynchronize();
+    // cudaEventRecord(stop);
+    // cudaEventSynchronize(stop);
+    // cudaEventElapsedTime(&elapsedTime, start, stop);
+    // printf("CudaSol1-MS: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
+    //
+    // // Check del risultato!
+    // MatVal* h_y = (MatVal*)malloc(h_csr->M * sizeof(MatVal));  // Alloca memoria sulla CPU
+    // cudaMemcpy(h_y, d_y, h_csr->M * sizeof(MatVal), cudaMemcpyDeviceToHost);
+    // ResultVector resultVector;
+    // resultVector.len_vector = h_csr->M;
+    // resultVector.val = h_y;
+    // if (checkResultVector(serial, &resultVector)) {
+    //     perror("Error spmv_csr_kernel_memory_shared in CudaSol1-MS \n");
+    // }
 
-    // Check del risultato!
-    MatVal* h_y = (MatVal*)malloc(h_csr->M * sizeof(MatVal));  // Alloca memoria sulla CPU
-    cudaMemcpy(h_y, d_y, h_csr->M * sizeof(MatVal), cudaMemcpyDeviceToHost);
-    ResultVector resultVector;
-    resultVector.len_vector = h_csr->M;
-    resultVector.val = h_y;
-    if (checkResultVector(serial, &resultVector)) {
-        perror("Error spmv_csr_kernel_memory_shared in CudaSol1-MS \n");
-    }
-
     cudaEventRecord(start);
-    spmv_csr_warp<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
+    spmv_csr_warp<<<blocksPerGrid, threadsPerBlock>>>(d_csr_ptr, d_x, d_y);
     cudaDeviceSynchronize();
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -290,7 +266,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     printf("CudaSol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
 
     cudaEventRecord(start);
-    spmv_csr_shared<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
+    spmv_csr_shared<<<blocksPerGrid, threadsPerBlock>>>(d_csr_ptr, d_x, d_y);
     cudaDeviceSynchronize();
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -305,7 +281,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     cudaMemcpy(&max_nnz_per_row, d_max_nnz, sizeof(int), cudaMemcpyDeviceToHost);
     cudaFree(d_max_nnz);
     cudaEventRecord(start);
-    spmv_csr_kernel_shared_memery_2<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y, max_nnz_per_row);
+    spmv_csr_kernel_shared_memery_2<<<blocksPerGrid, threadsPerBlock>>>(d_csr_ptr, d_x, d_y, max_nnz_per_row);
     cudaDeviceSynchronize();
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

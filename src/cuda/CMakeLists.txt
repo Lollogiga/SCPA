@@ -9,6 +9,7 @@ add_library(cuda STATIC
         Utils.cu
         product/CSR.cu
         product/HLL.cu
+        product/Serial.cu
 )
 
 # Linka la libreria 'utils'
