@@ -114,13 +114,13 @@ __global__ void spmv_csr_shared(CSRMatrix *csr, MatVal *x, MatVal *y) {
 }
 
 // Test 5
-__global__ void find_max_nnz_per_row(int M, int *IRP, int *max_nnz) {
+__global__ void find_max_nnz_per_row(int M, CSRMatrix *csr, int *max_nnz) {
     __shared__ int local_max;
     if (threadIdx.x == 0) local_max = 0;
     __syncthreads();
 
     for (int i = threadIdx.x; i < M; i += blockDim.x) {
-        int nnz = IRP[i + 1] - IRP[i];
+        int nnz = csr->IRP[i + 1] - csr->IRP[i];
         atomicMax(&local_max, nnz);
     }
 
@@ -234,7 +234,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     int *d_max_nnz;
     cudaMalloc(&d_max_nnz, sizeof(int));
     cudaMemset(d_max_nnz, 0, sizeof(int));
-    find_max_nnz_per_row<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr->IRP, d_max_nnz);
+    find_max_nnz_per_row<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr, d_max_nnz);
     int max_nnz_per_row;
     cudaMemcpy(&max_nnz_per_row, d_max_nnz, sizeof(int), cudaMemcpyDeviceToHost);
     cudaFree(d_max_nnz);
@@ -261,9 +261,9 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
 
     csr_product(csr, serial);
 
-    // cudaDeviceProp prop;
-    // cudaGetDeviceProperties(&prop, 0);
-    //
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+
     // printf("Nome GPU: %s\n", prop.name);
     // printf("Max threads per block: %d\n", prop.maxThreadsPerBlock);
     // printf("Warp size: %d\n", prop.warpSize);
@@ -271,8 +271,6 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
     // printf("Numero di multiprocessori: %d\n", prop.multiProcessorCount);
     // printf("Max blocchi per griglia: %d\n", prop.maxGridSize[0]);
     // printf("Memoria condivisa per blocco: %zu bytes\n", prop.sharedMemPerBlock);
-
-    return 0;
 
     return 0;
 }
