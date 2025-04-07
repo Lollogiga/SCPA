@@ -7,7 +7,8 @@
 
 #include "../constants.h"
 #include "../mtxStructs.h"
+#include "../../include/result.h"
 
-__global__ void spmv_csr_serial(CSRMatrix *csr, MatVal *vector, MatVal *result);
+__global__ void spmv_csr_serial(CSRMatrix *csr, MatVal *vector, ResultVector *result);
 
 #endif //SERIAL_CUH

@@ -1,7 +1,7 @@
 #include "../../include/cuda/Serial.cuh"
 
 // CSR serial CUDA
-__global__ void spmv_csr_serial(CSRMatrix *csr, MatVal *vector, MatVal *result) {
+__global__ void spmv_csr_serial(CSRMatrix *csr, MatVal *vector, ResultVector *result) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
         for (int row = 0; row < csr->M; row++) {
             MatVal sum = 0.0f;
@@ -14,7 +14,7 @@ __global__ void spmv_csr_serial(CSRMatrix *csr, MatVal *vector, MatVal *result) 
                 sum += val * vector[col];
             }
 
-            result[row] = sum;
+            result->val[row] = sum;
         }
     }
 }

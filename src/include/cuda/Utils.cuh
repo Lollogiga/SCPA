@@ -2,6 +2,7 @@
 #define CUDAUTILS_CUH
 
 #include "../mtxStructs.h"
+#include "../result.h"
 
 #define CUDA_EVENT_CREATE(start, stop) \
 cudaEvent_t start, stop; \
@@ -26,6 +27,10 @@ cudaEventElapsedTime(&elapsedTime, start, stop); \
 elapsedTime /= 1000;
 
 CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr);
+ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec);
+
+// ResultVector* downloadResultVectorToHost(const ResultVector *d_vec_ptr);
+void downloadResultVectorToHost(ResultVector *hostResultVector, const ResultVector *deviceResultVector);
 
 void freeCSRDevice(CSRMatrix *d_csr_ptr);
 

@@ -169,12 +169,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     int warpsPerBlock = threadsPerBlock / WARP_SIZE;
     int blocksPerGrid = (h_csr->M + warpsPerBlock - 1) / warpsPerBlock;
 
-    MatVal* h_x = (MatVal*) malloc(h_csr->N * sizeof(MatVal));
-    if (h_x == NULL) {
-        perror("malloc");
-        return -1;
-    }
-    for (int i = 0; i < h_csr->N; i++) h_x[i] = 1.0;
+    MatVal *h_x = create_vector(h_csr->N);
 
     MatVal* d_x;
     cudaMalloc(&d_x, h_csr->N * sizeof(MatVal));
@@ -182,54 +177,59 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     cudaMemAdvise(d_x, h_csr->N * sizeof(MatVal), cudaMemAdviseSetReadMostly, 0);
     cudaMemAdvise(d_x, h_csr->N * sizeof(MatVal), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
 
+    ResultVector *h_result_vector = create_result_vector(h_csr->M);
+    ResultVector *d_result_vector = uploadResultVectorToDevice(h_result_vector);
+
     MatVal* d_y;
     cudaMalloc(&d_y, h_csr->M * sizeof(MatVal));
 
-    // Check del risultato!
-    // MatVal* h_y = (MatVal*)malloc(h_csr->M * sizeof(MatVal));  // Alloca memoria sulla CPU
-    // cudaMemcpy(h_y, d_y, h_csr->M * sizeof(MatVal), cudaMemcpyDeviceToHost);
-    // ResultVector resultVector;
-    // resultVector.len_vector = h_csr->M;
-    // resultVector.val = h_y;
-    // if (checkResultVector(serial, &resultVector)) {
-    //     perror("Error spmv_csr_kernel_memory_shared in CudaSol1-MS \n");
-    // }
-
-    // TODO
-    // ResultVector *resultVector = create_result_vector(h_csr->N);
-
     CUDA_EVENT_START(start)
-    spmv_csr_serial<<<1, 1>>>(d_csr, d_x, d_y);
+    spmv_csr_serial<<<1, 1>>>(d_csr, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSerial: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (checkResultVector(serial, h_result_vector)) {
+        perror("Error checkResultVector in spmv_csr_serial \n");
+
+        return -1;
+    }
 
     CUDA_EVENT_START(start)
     spmv_csr_kernel_sol1<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (checkResultVector(serial, h_result_vector)) {
+        perror("Error checkResultVector in CudaSol1 \n");
 
-    // NOTA: utilizzare lo schema sotto per controllare la correttezza!
-    // CUDA_EVENT_START(start)
-    // spmv_csr_kernel_memory_shared<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
-    // CUDA_EVENT_STOP(stop)
-    // CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    // printf("CudaSol1-MS: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
-    //
-
+        return -1;
+    }
 
     CUDA_EVENT_START(start)
     spmv_csr_warp<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (checkResultVector(serial, h_result_vector)) {
+        perror("Error checkResultVector in CudaSol2 \n");
+
+        return -1;
+    }
 
     CUDA_EVENT_START(start)
     spmv_csr_shared<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol3: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (checkResultVector(serial, h_result_vector)) {
+        perror("Error checkResultVector in CudaSol3 \n");
+
+        return -1;
+    }
 
     int *d_max_nnz;
     cudaMalloc(&d_max_nnz, sizeof(int));
@@ -243,6 +243,12 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol4: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (checkResultVector(serial, h_result_vector)) {
+        perror("Error checkResultVector in CudaSol4 \n");
+
+        return -1;
+    }
 
     freeCSRDevice(d_csr);
     cudaFree(d_x);
@@ -261,8 +267,8 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
 
     csr_product(csr, serial);
 
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
+    // cudaDeviceProp prop;
+    // cudaGetDeviceProperties(&prop, 0);
 
     // printf("Nome GPU: %s\n", prop.name);
     // printf("Max threads per block: %d\n", prop.maxThreadsPerBlock);
