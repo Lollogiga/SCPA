@@ -5,6 +5,7 @@
 
 #include "../include/openmp/Serial.h"
 #include "../include/cuda/Serial.cuh"
+#include "../include/cuda/Utils.cuh"
 #include "../include/checkResultVector.h"
 #include "../include/mtxStructs.h"
 #include "../include/flops.h"
@@ -157,50 +158,12 @@ __global__ void spmv_csr_kernel_shared_memery_2(CSRMatrix *csr, float *x, float 
     }
 }
 
-CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr) {
-    // 1. Crea struttura temporanea su host
-    CSRMatrix d_csr;
-    d_csr.M = h_csr->M;
-    d_csr.N = h_csr->N;
-    d_csr.NZ = h_csr->NZ;
-
-    // 2. Alloca array su device e copia i contenuti
-    cudaMalloc((void**)&d_csr.IRP, (h_csr->M + 1) * sizeof(MatT));
-    cudaMemcpy(d_csr.IRP, h_csr->IRP, (h_csr->M + 1) * sizeof(MatT), cudaMemcpyHostToDevice);
-
-    cudaMalloc((void**)&d_csr.JA, h_csr->NZ * sizeof(MatT));
-    cudaMemcpy(d_csr.JA, h_csr->JA, h_csr->NZ * sizeof(MatT), cudaMemcpyHostToDevice);
-
-    cudaMalloc((void**)&d_csr.AS, h_csr->NZ * sizeof(MatVal));
-    cudaMemcpy(d_csr.AS, h_csr->AS, h_csr->NZ * sizeof(MatVal), cudaMemcpyHostToDevice);
-
-    // 3. Alloca CSRMatrix su device
-    CSRMatrix *d_csr_ptr;
-    cudaMalloc((void**)&d_csr_ptr, sizeof(CSRMatrix));
-
-    // 4. Copia la struttura su device
-    cudaMemcpy(d_csr_ptr, &d_csr, sizeof(CSRMatrix), cudaMemcpyHostToDevice);
-
-    return d_csr_ptr;
-}
-
 int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    CUDA_EVENT_CREATE(start, stop)
 
     float elapsedTime;
 
-    CSRMatrix *d_csr_ptr = uploadCSRToDevice(h_csr);
-
-    CSRMatrix d_csr;
-    cudaMalloc((void**)&d_csr.IRP, (h_csr->M + 1) * sizeof(MatT));
-    cudaMalloc((void**)&d_csr.JA, h_csr->NZ * sizeof(MatT));
-    cudaMalloc((void**)&d_csr.AS, h_csr->NZ * sizeof(MatVal));
-
-    cudaMemcpy(d_csr.IRP, h_csr->IRP, (h_csr->M + 1) * sizeof(MatT), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_csr.JA, h_csr->JA, h_csr->NZ * sizeof(MatT), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_csr.AS, h_csr->AS, h_csr->NZ * sizeof(MatVal), cudaMemcpyHostToDevice);
+    CSRMatrix *d_csr = uploadCSRToDevice(h_csr);
 
     int threadsPerBlock = BLOCK_SIZE;
     int warpsPerBlock = threadsPerBlock / WARP_SIZE;
@@ -222,32 +185,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     MatVal* d_y;
     cudaMalloc(&d_y, h_csr->M * sizeof(MatVal));
 
-    cudaEventRecord(start);
-    spmv_csr_serial<<<1, 1>>>(d_csr_ptr, d_x, d_y);
-    cudaDeviceSynchronize();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    printf("CudaSerial: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
-
-    cudaEventRecord(start);
-    spmv_csr_kernel_sol1<<<blocksPerGrid, threadsPerBlock>>>(d_csr_ptr, d_x, d_y);
-    cudaDeviceSynchronize();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    printf("CudaSol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
-
-    // NOTA: utilizzare lo schema sotto per controllare la correttezza!
-    // cudaEventRecord(start);
-    // spmv_csr_kernel_memory_shared<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
-    // cudaDeviceSynchronize();
-    // cudaEventRecord(stop);
-    // cudaEventSynchronize(stop);
-    // cudaEventElapsedTime(&elapsedTime, start, stop);
-    // printf("CudaSol1-MS: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
-    //
-    // // Check del risultato!
+    // Check del risultato!
     // MatVal* h_y = (MatVal*)malloc(h_csr->M * sizeof(MatVal));  // Alloca memoria sulla CPU
     // cudaMemcpy(h_y, d_y, h_csr->M * sizeof(MatVal), cudaMemcpyDeviceToHost);
     // ResultVector resultVector;
@@ -257,44 +195,60 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     //     perror("Error spmv_csr_kernel_memory_shared in CudaSol1-MS \n");
     // }
 
-    cudaEventRecord(start);
-    spmv_csr_warp<<<blocksPerGrid, threadsPerBlock>>>(d_csr_ptr, d_x, d_y);
-    cudaDeviceSynchronize();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    printf("CudaSol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
+    // TODO
+    // ResultVector *resultVector = create_result_vector(h_csr->N);
 
-    cudaEventRecord(start);
-    spmv_csr_shared<<<blocksPerGrid, threadsPerBlock>>>(d_csr_ptr, d_x, d_y);
-    cudaDeviceSynchronize();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    printf("CudaSol3: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
+    CUDA_EVENT_START(start)
+    spmv_csr_serial<<<1, 1>>>(d_csr, d_x, d_y);
+    CUDA_EVENT_STOP(stop)
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    printf("CudaSerial: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+
+    CUDA_EVENT_START(start)
+    spmv_csr_kernel_sol1<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
+    CUDA_EVENT_STOP(stop)
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    printf("CudaSol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+
+    // NOTA: utilizzare lo schema sotto per controllare la correttezza!
+    // CUDA_EVENT_START(start)
+    // spmv_csr_kernel_memory_shared<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_csr.JA, d_csr.AS, d_x, d_y);
+    // CUDA_EVENT_STOP(stop)
+    // CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    // printf("CudaSol1-MS: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    //
+
+
+    CUDA_EVENT_START(start)
+    spmv_csr_warp<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
+    CUDA_EVENT_STOP(stop)
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    printf("CudaSol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+
+    CUDA_EVENT_START(start)
+    spmv_csr_shared<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
+    CUDA_EVENT_STOP(stop)
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    printf("CudaSol3: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
 
     int *d_max_nnz;
     cudaMalloc(&d_max_nnz, sizeof(int));
     cudaMemset(d_max_nnz, 0, sizeof(int));
-    find_max_nnz_per_row<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr.IRP, d_max_nnz);
+    find_max_nnz_per_row<<<blocksPerGrid, threadsPerBlock>>>(h_csr->M, d_csr->IRP, d_max_nnz);
     int max_nnz_per_row;
     cudaMemcpy(&max_nnz_per_row, d_max_nnz, sizeof(int), cudaMemcpyDeviceToHost);
     cudaFree(d_max_nnz);
-    cudaEventRecord(start);
-    spmv_csr_kernel_shared_memery_2<<<blocksPerGrid, threadsPerBlock>>>(d_csr_ptr, d_x, d_y, max_nnz_per_row);
-    cudaDeviceSynchronize();
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    printf("CudaSol4: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime / 1000));
+    CUDA_EVENT_START(start)
+    spmv_csr_kernel_shared_memery_2<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y, max_nnz_per_row);
+    CUDA_EVENT_STOP(stop)
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    printf("CudaSol4: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
 
-    cudaFree(d_csr.IRP);
-    cudaFree(d_csr.JA);
-    cudaFree(d_csr.AS);
+    freeCSRDevice(d_csr);
     cudaFree(d_x);
     cudaFree(d_y);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+
+    CUDA_EVENT_DESTROY(start, stop)
 
     free(h_x);
 

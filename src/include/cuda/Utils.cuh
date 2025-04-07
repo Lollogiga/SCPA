@@ -1,8 +1,7 @@
 #ifndef CUDAUTILS_CUH
 #define CUDAUTILS_CUH
 
-#include <cuda_runtime.h>
-#include <stdio.h>
+#include "../mtxStructs.h"
 
 #define CUDA_EVENT_CREATE(start, stop) \
 cudaEvent_t start, stop; \
@@ -25,5 +24,9 @@ cudaEventSynchronize(stop);
 #define CUDA_EVENT_ELAPSED(start, stop, elapsedTime) \
 cudaEventElapsedTime(&elapsedTime, start, stop); \
 elapsedTime /= 1000;
+
+CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr);
+
+void freeCSRDevice(CSRMatrix *d_csr_ptr);
 
 #endif//CUDAUTILS_CUH
