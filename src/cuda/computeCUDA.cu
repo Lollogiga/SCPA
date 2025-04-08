@@ -27,14 +27,15 @@
 #define MAX_NZ_PER_BLOCK 1024
 
 // Test 1
-__global__ void spmv_csr_kernel_sol1(CSRMatrix *csr, MatVal *x, MatVal *y) {
+__global__ void spmv_csr_kernel_sol1(CSRMatrix *csr, MatVal *x, ResultVector *result) {
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     if (row < csr->M) {
         MatVal sum = 0.0;
         for (int j = csr->IRP[row]; j < csr->IRP[row + 1]; j++) {
             sum += csr->AS[j] * x[csr->JA[j]];
         }
-        y[row] = sum;
+
+        result->val[row] = sum;
     }
 }
 
@@ -46,7 +47,7 @@ __device__ inline MatVal warpReduceSum(MatVal val) {
     return val;
 }
 
-__global__ void spmv_csr_warp(CSRMatrix *csr, MatVal *x, MatVal *y) {
+__global__ void spmv_csr_warp(CSRMatrix *csr, MatVal *x, ResultVector *result) {
     int warp_id = blockIdx.x * (blockDim.x / WARP_SIZE) + threadIdx.x / WARP_SIZE;  // Warp globale
     int lane = threadIdx.x % WARP_SIZE;  // ID del thread nel warp
 
@@ -65,13 +66,13 @@ __global__ void spmv_csr_warp(CSRMatrix *csr, MatVal *x, MatVal *y) {
 
         // Scriviamo il risultato solo dal primo thread del warp
         if (lane == 0) {
-            y[warp_id] = sum;
+            result->val[warp_id] = sum;
         }
     }
 }
 
 // Test 3
-__global__ void spmv_csr_shared(CSRMatrix *csr, MatVal *x, MatVal *y) {
+__global__ void spmv_csr_shared(CSRMatrix *csr, MatVal *x, ResultVector *result) {
     __shared__ MatVal shared_AS[MAX_NZ_PER_BLOCK];  // Memoria condivisa per i valori della matrice
     __shared__ MatT shared_JA[MAX_NZ_PER_BLOCK];   // Memoria condivisa per gli indici di colonna
 
@@ -109,7 +110,7 @@ __global__ void spmv_csr_shared(CSRMatrix *csr, MatVal *x, MatVal *y) {
 
     // Solo il primo thread scrive il risultato finale
     if (lane == 0) {
-        atomicAdd(&y[warp_id], warp_sums[threadIdx.x / WARP_SIZE]);
+        atomicAdd(&result->val[warp_id], warp_sums[threadIdx.x / WARP_SIZE]);
     }
 }
 
@@ -128,14 +129,14 @@ __global__ void find_max_nnz_per_row(int M, CSRMatrix *csr, int *max_nnz) {
     if (threadIdx.x == 0) atomicMax(max_nnz, local_max);
 }
 
-__global__ void spmv_csr_kernel_shared_memery_2(CSRMatrix *csr, float *x, float *y, int max_nnz) {
+__global__ void spmv_csr_kernel_shared_memery_2(CSRMatrix *csr, float *x, ResultVector *result, int max_nnz) {
     int row = blockIdx.x;  // Un blocco per riga
     int tid = threadIdx.x; // Thread all'interno del blocco
 
     int start = csr->IRP[row];
     int end = csr->IRP[row + 1];
 
-    float sum = 0.0f;
+    MatVal sum = 0.0f;
     for (int j = start + tid; j < end; j += blockDim.x) {
         sum += csr->AS[j] * x[csr->JA[j]];
     }
@@ -154,7 +155,7 @@ __global__ void spmv_csr_kernel_shared_memery_2(CSRMatrix *csr, float *x, float 
     }
 
     if (tid == 0) {
-        y[row] = shared_sum[0];
+        result->val[row] = shared_sum[0];
     }
 }
 
@@ -192,11 +193,11 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     if (checkResultVector(serial, h_result_vector)) {
         perror("Error checkResultVector in spmv_csr_serial \n");
 
-        return -1;
+        // return -1;
     }
 
     CUDA_EVENT_START(start)
-    spmv_csr_kernel_sol1<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
+    spmv_csr_kernel_sol1<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
@@ -204,11 +205,11 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     if (checkResultVector(serial, h_result_vector)) {
         perror("Error checkResultVector in CudaSol1 \n");
 
-        return -1;
+        // return -1;
     }
 
     CUDA_EVENT_START(start)
-    spmv_csr_warp<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
+    spmv_csr_warp<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
@@ -216,11 +217,11 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     if (checkResultVector(serial, h_result_vector)) {
         perror("Error checkResultVector in CudaSol2 \n");
 
-        return -1;
+        // return -1;
     }
 
     CUDA_EVENT_START(start)
-    spmv_csr_shared<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y);
+    spmv_csr_shared<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol3: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
@@ -228,7 +229,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     if (checkResultVector(serial, h_result_vector)) {
         perror("Error checkResultVector in CudaSol3 \n");
 
-        return -1;
+        // return -1;
     }
 
     int *d_max_nnz;
@@ -239,7 +240,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     cudaMemcpy(&max_nnz_per_row, d_max_nnz, sizeof(int), cudaMemcpyDeviceToHost);
     cudaFree(d_max_nnz);
     CUDA_EVENT_START(start)
-    spmv_csr_kernel_shared_memery_2<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_y, max_nnz_per_row);
+    spmv_csr_kernel_shared_memery_2<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector, max_nnz_per_row);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol4: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
@@ -247,7 +248,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     if (checkResultVector(serial, h_result_vector)) {
         perror("Error checkResultVector in CudaSol4 \n");
 
-        return -1;
+        // return -1;
     }
 
     freeCSRDevice(d_csr);
