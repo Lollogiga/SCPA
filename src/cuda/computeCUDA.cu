@@ -9,8 +9,8 @@
 #include "../include/checkResultVector.h"
 #include "../include/mtxStructs.h"
 #include "../include/flops.h"
-#include "../include/createVector.h"
 
+#include "../include/cuda/HLL.cuh"
 /*
  * --- NOTE SULLA SCHEDA VIDEO SUL SERVER DI DIPARTIMENTO ---
  * Nome GPU: Quadro RTX 5000
@@ -267,6 +267,7 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
     ResultVector *serial = csr_serialProduct(csr, vector);
 
     csr_product(csr, serial);
+    hll_CUDA_product(hll, serial);
 
     // cudaDeviceProp prop;
     // cudaGetDeviceProperties(&prop, 0);
