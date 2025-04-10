@@ -166,6 +166,7 @@ int main(int argc, char *argv[]) {
     printf("\n../matrixTest/cant.mtx\n");
     // computeMatrix("../matrixTest/cant.mtx");
     computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
+    // computeMatrix("../matrix/ML_Laplace.mtx");
 #endif
 
     closedir(dir);

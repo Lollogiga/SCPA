@@ -62,7 +62,6 @@ __global__ void csr_cudaProduct_sol3(CSRMatrix *csr, MatVal *v, ResultVector *re
         }
 
         sum = warpReduceSum(sum, mask);
-        // sum = warpReduceSumKahan(sum, mask);
 
         if (lane == 0) {
             result->val[warp_id] = sum;

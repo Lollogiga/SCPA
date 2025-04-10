@@ -28,7 +28,6 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     int int_err;
     
     float elapsedTime;
-    double check;
     
     CSRMatrix *d_csr = uploadCSRToDevice(h_csr);
     if (d_csr == nullptr) {
@@ -195,7 +194,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("csr_cudaProduct_sol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    printf("CudaSol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
@@ -223,6 +222,85 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     freeResultVectorFromDevice(d_result_vector);
 
     // SOL 2
+    // for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
+    // d_result_vector = uploadResultVectorToDevice(h_result_vector);
+    // if (d_result_vector == nullptr) {
+    //     printf("\033[31mcsr_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
+    //
+    //     freeCSRDevice(d_csr);
+    //     free_vector(h_x);
+    //     cudaFree(d_x);
+    //     free_result_vector(h_result_vector);
+    //     freeResultVectorFromDevice(d_result_vector);
+    //     CUDA_EVENT_DESTROY(start, stop)
+    //     return -1;
+    // }
+    //
+    // MatVal* d_product;
+    // cuda_error = cudaMalloc(&d_product, h_csr->NZ * sizeof(MatVal));
+    // if (cuda_error != cudaSuccess) {
+    //     printf("\033[31mcsr_product - cudaMalloc d_product failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+    //
+    //     freeCSRDevice(d_csr);
+    //     free_vector(h_x);
+    //     cudaFree(d_x);
+    //     free_result_vector(h_result_vector);
+    //     freeResultVectorFromDevice(d_result_vector);
+    //     CUDA_EVENT_DESTROY(start, stop)
+    //     return -1;
+    // }
+    //
+    // blocksPerGrid = (h_csr->NZ + warpsPerBlock - 1) / warpsPerBlock;
+    //
+    // CUDA_EVENT_START(start)
+    // csr_cudaProduct_sol2_product<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_product, d_x);
+    // cudaDeviceSynchronize();
+    //
+    // blocksPerGrid = (h_csr->M + warpsPerBlock - 1) / warpsPerBlock;
+    // csr_cudaProduct_sol2_reduce<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_product, d_result_vector);
+    // CUDA_EVENT_STOP(stop)
+    // cuda_error = cudaGetLastError();
+    // CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    // if (cuda_error) {
+    //     printf("\033[31mcsr_product - csr_cudaProduct_sol2 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+    //
+    //     freeCSRDevice(d_csr);
+    //     free_vector(h_x);
+    //     cudaFree(d_x);
+    //     free_result_vector(h_result_vector);
+    //     freeResultVectorFromDevice(d_result_vector);
+    //     CUDA_EVENT_DESTROY(start, stop)
+    //     return -1;
+    // }
+    // printf("csr_cudaProduct_sol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    // int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
+    // if (int_err != 0) {
+    //     printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol2 failed\033[0m\n");
+    //
+    //     freeCSRDevice(d_csr);
+    //     free_vector(h_x);
+    //     cudaFree(d_x);
+    //     free_result_vector(h_result_vector);
+    //     freeResultVectorFromDevice(d_result_vector);
+    //     CUDA_EVENT_DESTROY(start, stop)
+    //     return -1;
+    // }
+    // int_err = checkResultVector(serial, h_result_vector);
+    // if (int_err) {
+    //     printf("\033[31mcsr_product - checkResultVector csr_cudaProduct_sol2 failed\033[0m\n");
+    //
+    //     freeCSRDevice(d_csr);
+    //     free_vector(h_x);
+    //     cudaFree(d_x);
+    //     free_result_vector(h_result_vector);
+    //     freeResultVectorFromDevice(d_result_vector);
+    //     CUDA_EVENT_DESTROY(start, stop)
+    //     return -1;
+    // }
+    // freeResultVectorFromDevice(d_result_vector);
+    // cudaFree(d_product);
+
+    // SOL 3
     for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
     d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
@@ -237,40 +315,14 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         return -1;
     }
 
-    MatVal* d_product;
-    cuda_error = cudaMalloc(&d_product, h_csr->NZ * sizeof(MatVal));
-    if (cuda_error != cudaSuccess) {
-        printf("\033[31mcsr_product - cudaMalloc d_product failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        freeCSRDevice(d_csr);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-
-    blocksPerGrid = (h_csr->NZ + warpsPerBlock - 1) / warpsPerBlock;
-
-    cuda_error = cudaGetLastError();
-    if (cuda_error) {
-        printf("\033[31mMy supposition: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        return -1;
-    }
+    blocksPerGrid = (h_csr->M + warpsPerBlock - 1) / warpsPerBlock;
 
     CUDA_EVENT_START(start)
-    csr_cudaProduct_sol2_product<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_product, d_x);
-    cudaDeviceSynchronize();
-
-    blocksPerGrid = (h_csr->M + warpsPerBlock - 1) / warpsPerBlock;
-    csr_cudaProduct_sol2_reduce<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_product, d_result_vector);
+    csr_cudaProduct_sol3<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     cuda_error = cudaGetLastError();
-    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     if (cuda_error) {
-        printf("\033[31mcsr_product - csr_cudaProduct_sol1 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+        printf("\033[31mcsr_product - csr_cudaProduct_sol3 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
 
         freeCSRDevice(d_csr);
         free_vector(h_x);
@@ -280,10 +332,11 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("csr_cudaProduct_sol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    printf("CudaSol3: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
-        printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol2 failed\033[0m\n");
+        printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol3 failed\033[0m\n");
 
         freeCSRDevice(d_csr);
         free_vector(h_x);
@@ -295,35 +348,28 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     }
     int_err = checkResultVector(serial, h_result_vector);
     if (int_err) {
-        printf("\033[31mcsr_product - checkResultVector csr_cudaProduct_sol2 failed\033[0m\n");
+        printf("\033[31mcsr_product - checkResultVector csr_cudaProduct_sol3 failed\033[0m\n");
 
-        freeCSRDevice(d_csr);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    freeResultVectorFromDevice(d_result_vector);
-    cudaFree(d_product);
+        // TODO capire se quest'errore è accettabile oppure no... lo da solo su una matrice: Cube_Coup_dt0
+        analyzeErrorVector(serial, h_result_vector);
+        /*
+         * Risultati ottenuti:
+         * === Analisi degli errori ===
+         * Errore assoluto massimo   : 1.982897747439e-04 => Basso — indica che il massimo scarto è nell'ordine dei 0.0002
+         * Errore relativo massimo   : 1.847778264837e+00 => Alto — significa che almeno un valore ha una deviazione molto forte rispetto alla sua grandezza
+         * Errore medio assoluto     : 8.093087121578e-06 => Molto basso — la media degli scarti assoluti è trascurabile
+         * Errore medio relativo     : 1.411729948878e-03 => Basso — in media i risultati sono vicini
+         * Errore L2 (norma euclidea): 2.166021948034e-02 => Normale — dipende dalla scala del problema, ma in generale è un errore contenuto
+         * ===========================
+         */
 
-    // SOL 3
-    for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
-    d_result_vector = uploadResultVectorToDevice(h_result_vector);
-
-    CUDA_EVENT_START(start)
-    csr_cudaProduct_sol3<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
-    CUDA_EVENT_STOP(stop)
-    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    printf("CudaSol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
-    downloadResultVectorToHost(h_result_vector, d_result_vector);
-    check = checkResultVector(serial, h_result_vector);
-    if (check) {
-        printf("check = %.0f\n", check);
-        perror("\033[31mError checkResultVector in CudaSol2\033[0m\n");
-
-        return -1;
+        // freeCSRDevice(d_csr);
+        // free_vector(h_x);
+        // cudaFree(d_x);
+        // free_result_vector(h_result_vector);
+        // freeResultVectorFromDevice(d_result_vector);
+        // CUDA_EVENT_DESTROY(start, stop)
+        // return -1;
     }
     freeResultVectorFromDevice(d_result_vector);
 

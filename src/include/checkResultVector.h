@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 double checkResultVector(const ResultVector *serial_result, const ResultVector *parallel_result);
+void analyzeErrorVector(const ResultVector *serial_result, const ResultVector *parallel_result);
 
 #ifdef __cplusplus
 }
