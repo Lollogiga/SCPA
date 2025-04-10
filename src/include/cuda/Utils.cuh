@@ -29,10 +29,9 @@ elapsedTime /= 1000;
 CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr);
 ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec);
 
-// ResultVector* downloadResultVectorToHost(const ResultVector *d_vec_ptr);
-void downloadResultVectorToHost(ResultVector *hostResultVector, const ResultVector *deviceResultVector);
+int downloadResultVectorToHost(ResultVector *hostResultVector, const ResultVector *deviceResultVector);
 
-void freeCSRDevice(CSRMatrix *d_csr_ptr);
-void freeResultVectorFromDevice(ResultVector *d_result_vector);
+int freeCSRDevice(CSRMatrix *d_csr_ptr);
+int freeResultVectorFromDevice(ResultVector *d_result_vector);
 
 #endif//CUDAUTILS_CUH

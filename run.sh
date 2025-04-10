@@ -1,19 +1,1 @@
-#!/bin/bash
-
-dir="build"
-
-# Controlla se la cartella esiste e la elimina
-if [ -d "$dir" ]; then
-  cd "$dir" || exit 1  # Esce se il cd fallisce
-
-  # Controlla se l'eseguibile esiste prima di eseguirlo
-  if [ -f "./SCPA" ]; then
-    ./SCPA
-  else
-    echo "Error: ./SCPA not found!"
-    exit 1
-  fi
-fi
-
-
-
+#!/bin/bashdir="build"# Controlla se la cartella esiste e la eliminaif [ -d "$dir" ]; then  cd "$dir" || exit 1  # Esce se il cd fallisce  # Controlla se l'eseguibile esiste prima di eseguirlo  if [ -f "./SCPA" ]; then    ./SCPA  else    echo "Error: ./SCPA not found!"    exit 1  fifi

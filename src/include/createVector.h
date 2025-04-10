@@ -9,7 +9,10 @@ extern "C" {
 #endif
 
 MatVal *create_vector(MatT len_vector);
+void free_vector(MatVal *vector);
+
 ResultVector *create_result_vector(MatT len_vector);
+void free_result_vector(ResultVector *result);
 
 #ifdef __cplusplus
 }

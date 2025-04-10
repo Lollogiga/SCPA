@@ -15,7 +15,12 @@ MatVal *create_vector(MatT len_vector) {
     for (int i = 0; i < len_vector; i++) {
         vector[i] = 1;
     }
+
     return vector;
+}
+
+void free_vector(MatVal *vector) {
+    if (vector) free(vector);
 }
 
 ResultVector *create_result_vector(MatT len_vector) {
@@ -35,4 +40,12 @@ ResultVector *create_result_vector(MatT len_vector) {
     }
 
     return result;
+}
+
+void free_result_vector(ResultVector *result) {
+    if (!result) return;
+
+    if (result->val) free(result->val);
+
+    free(result);
 }
