@@ -14,7 +14,15 @@
 /*
  * --- NOTE SULLA SCHEDA VIDEO SUL SERVER DI DIPARTIMENTO ---
  * Nome GPU: Quadro RTX 5000
- * Max threads per block: 1024
+ * Max threads per block: 1024#include <cuda_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "../../include/cuda/Serial.cuh"
+#include "../../include/cuda/HLL.cuh"
+#include "../../include/createVector.h"
+#include "../../include/cuda/Utils.cuh"
  * Warp size: 32
  * Max threads per multiprocessore: 1024
  * Numero di multiprocessori: 48
@@ -429,7 +437,7 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
     ResultVector *serial = csr_serialProduct(csr, vector);
 
     csr_product(csr, serial);
-    // hll_CUDA_product(hll, serial);
+    hll_CUDA_product(hll, serial);
 
     int sharedMemPerBlock;
     cudaDeviceGetAttribute(&sharedMemPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);

@@ -1,5 +1,6 @@
 #include "../include/cuda/Utils.cuh"
 
+
 CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr) {
     // 1. Crea struttura temporanea su host
     CSRMatrix d_csr;

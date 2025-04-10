@@ -7,118 +7,132 @@
 #include "../../include/cuda/HLL.cuh"
 #include "../../include/createVector.h"
 #include "../../include/cuda/Utils.cuh"
+#include "../../include/checkResultVector.h"
+#include "../../include/flops.h"
 
-#define WARP_SIZE 32 // Impostato a 32 rispetto al server di dipartimento con sopra montata una Quadro RTX 5000
-#define BLOCK_SIZE 1024 // Il server ha a disposizione al massimo 1024 thread attivi contemporaneamente
+#define WARP_SIZE 32
+#define BLOCK_SIZE 1024
 #define MAX_NZ_PER_BLOCK 1024
 
-// Funzione che carica la matrice HLL sulla GPU e la restituisce come puntatore
-HLLMatrix* uploadHLLToDevice(HLLMatrix *hll) {
+// Kernel per l'elaborazione di un singolo blocco HLL
+__global__ void hll_process_block_kernel(
+    ELLPACKMatrix *block,
+    MatVal *d_vector,
+    MatVal *d_result,
+    int blockGlobalOffset
+) {
+    int localRow = threadIdx.x + blockIdx.x * blockDim.x;
+    if (localRow < block->M) {
+        MatVal sum = 0.0;
+        for (int j = 0; j < block->MAXNZ; ++j) {
+            int col = block->JA[localRow][j];
+            MatVal val = block->AS[localRow][j];
+            sum += val * d_vector[col];
+        }
+        d_result[blockGlobalOffset + localRow] = sum;
+    }
+}
+
+// Upload completo di HLL e blocchi sul device
+HLLMatrix* uploadHLLToDevice(HLLMatrix *hll, ELLPACKMatrix ***d_blocks_ptr) {
     HLLMatrix *d_hll;
-
-    // Allocazione memoria per la struttura HLLMatrix sulla GPU
     cudaMalloc((void**)&d_hll, sizeof(HLLMatrix));
-
-    // Copia della struttura HLLMatrix dalla memoria host alla memoria device
     cudaMemcpy(d_hll, hll, sizeof(HLLMatrix), cudaMemcpyHostToDevice);
 
-    // Allocazione della memoria per i blocchi ELLPACKMatrix sulla GPU
-    cudaMalloc((void**)&(d_hll->blocks), hll->numBlocks * sizeof(ELLPACKMatrix*));
+    // Array device di puntatori ai blocchi
+    ELLPACKMatrix **d_blocks;
+    cudaMalloc((void**)&d_blocks, hll->numBlocks * sizeof(ELLPACKMatrix*));
 
-    // Ciclo per copiare ogni blocco ELLPACKMatrix sulla GPU
-    for (int blockIdx = 0; blockIdx < hll->numBlocks; blockIdx++) {
-        ELLPACKMatrix *block = hll->blocks[blockIdx];
+    for (int b = 0; b < hll->numBlocks; b++) {
+        ELLPACKMatrix *h_block = hll->blocks[b];
         ELLPACKMatrix *d_block;
 
-        // Allocazione memoria per ogni blocco ELLPACKMatrix sulla GPU
         cudaMalloc((void**)&d_block, sizeof(ELLPACKMatrix));
+        cudaMemcpy(d_block, h_block, sizeof(ELLPACKMatrix), cudaMemcpyHostToDevice);
 
-        // Copia della struttura ELLPACKMatrix dalla memoria host alla memoria device
-        cudaMemcpy(d_block, block, sizeof(ELLPACKMatrix), cudaMemcpyHostToDevice);
+        size_t size = h_block->M * h_block->MAXNZ;
+        MatT *flat_JA;
+        MatVal *flat_AS;
 
-        // Allocazione memoria per i dati del blocco (JA e AS)
-        cudaMalloc((void**)&(d_block->JA), block->M * block->MAXNZ * sizeof(MatT));
-        cudaMalloc((void**)&(d_block->AS), block->M * block->MAXNZ * sizeof(MatVal));
+        cudaMalloc((void**)&flat_JA, size * sizeof(MatT));
+        cudaMalloc((void**)&flat_AS, size * sizeof(MatVal));
+        cudaMemcpy(flat_JA, h_block->JA[0], size * sizeof(MatT), cudaMemcpyHostToDevice);
+        cudaMemcpy(flat_AS, h_block->AS[0], size * sizeof(MatVal), cudaMemcpyHostToDevice);
 
-        // Copia dei dati di ciascun blocco (JA e AS) dalla memoria host alla memoria device
-        for (MatT row = 0; row < block->M; row++) {
-            cudaMemcpy(d_block->JA[row], block->JA[row], block->MAXNZ * sizeof(MatT), cudaMemcpyHostToDevice);
-            cudaMemcpy(d_block->AS[row], block->AS[row], block->MAXNZ * sizeof(MatVal), cudaMemcpyHostToDevice);
+        MatT **d_JA_rows;
+        MatVal **d_AS_rows;
+        cudaMalloc(&d_JA_rows, h_block->M * sizeof(MatT*));
+        cudaMalloc(&d_AS_rows, h_block->M * sizeof(MatVal*));
+
+        MatT **h_JA_rows = (MatT**)malloc(h_block->M * sizeof(MatT*));
+        MatVal **h_AS_rows = (MatVal**)malloc(h_block->M * sizeof(MatVal*));
+        for (int i = 0; i < h_block->M; ++i) {
+            h_JA_rows[i] = flat_JA + i * h_block->MAXNZ;
+            h_AS_rows[i] = flat_AS + i * h_block->MAXNZ;
         }
 
-        // Aggiornamento dell'array di blocchi nella memoria del dispositivo
-        cudaMemcpy(&(d_hll->blocks[blockIdx]), &d_block, sizeof(ELLPACKMatrix*), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_JA_rows, h_JA_rows, h_block->M * sizeof(MatT*), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_AS_rows, h_AS_rows, h_block->M * sizeof(MatVal*), cudaMemcpyHostToDevice);
+
+        cudaMemcpy(&(d_block->JA), &d_JA_rows, sizeof(MatT**), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(d_block->AS), &d_AS_rows, sizeof(MatVal**), cudaMemcpyHostToDevice);
+
+        cudaMemcpy(&(d_blocks[b]), &d_block, sizeof(ELLPACKMatrix*), cudaMemcpyHostToDevice);
+
+        free(h_JA_rows);
+        free(h_AS_rows);
     }
 
-    // Restituzione del puntatore alla matrice HLLMatrix sulla GPU
+    cudaMemcpy(&(d_hll->blocks), &d_blocks, sizeof(ELLPACKMatrix**), cudaMemcpyHostToDevice);
+
+    *d_blocks_ptr = d_blocks;
     return d_hll;
 }
 
-
-__global__ void ellpack_CUDA_product_kernel(ELLPACKMatrix *d_block, MatVal *d_vector, MatVal *d_result) {
-    int row = threadIdx.x + blockIdx.x * blockDim.x;
-
-    if (row < d_block->M) {
-        MatT *JA = d_block->JA[row];
-        MatVal *AS = d_block->AS[row];
-
-        // Moltiplicazione della matrice per il vettore, con somma atomica
-        for (int i = 0; i < d_block->MAXNZ; i++) {
-            if (JA[i] >= 0) {
-                atomicAdd(&d_result[row], AS[i] * d_vector[JA[i]]);
-            }
-        }
-    }
-}
-
-
-ResultVector *hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_vector) {
+// Funzione principale per il prodotto parallelo con HLL
+ResultVector* hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_vector) {
     if (!h_hll || !serial_vector) {
         perror("hll_CUDA_product: NULL pointer detected");
         return NULL;
     }
 
-    // Creazione del vettore risultato sulla GPU
-    ResultVector *h_result_vector = create_result_vector(h_hll->M);  // Crea il risultato host
-    ResultVector *d_result_vector = uploadResultVectorToDevice(h_result_vector);  // Copia sulla GPU
+    ResultVector *h_result_vector = create_result_vector(h_hll->M);
+    MatVal *h_vector = create_vector(h_hll->N); // oppure copia da serial_vector->val
 
-    // Creazione del vettore di input sulla GPU
-    MatVal *h_vector = create_vector(h_hll->N);
-
-    MatVal* d_vector;
+    // Allocazione e copia vettore input e risultato su device
+    MatVal *d_vector, *d_result;
     cudaMalloc(&d_vector, h_hll->N * sizeof(MatVal));
+    cudaMalloc(&d_result, h_hll->M * sizeof(MatVal));
     cudaMemcpy(d_vector, h_vector, h_hll->N * sizeof(MatVal), cudaMemcpyHostToDevice);
-    cudaMemAdvise(d_vector, h_hll->N * sizeof(MatVal), cudaMemAdviseSetReadMostly, 0);
-    cudaMemAdvise(d_vector, h_hll->N * sizeof(MatVal), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
 
-    // Ciclo sui blocchi HLL
-    for (int blockIdx = 0; blockIdx < h_hll->numBlocks; blockIdx++) {
-        ELLPACKMatrix *d_block;
-        cudaMemcpy(&d_block, &h_hll->blocks[blockIdx], sizeof(ELLPACKMatrix*), cudaMemcpyHostToDevice);
+    // Upload HLL e blocchi
+    ELLPACKMatrix **d_blocks;
+    HLLMatrix *d_hll = uploadHLLToDevice(h_hll, &d_blocks);
 
-        // Definizione della griglia di thread
-        dim3 threadsPerBlock(256); // Numero di thread per blocco
-        dim3 numBlocks((d_block->M + threadsPerBlock.x - 1) / threadsPerBlock.x);
+    // Lancio di un kernel per ogni blocco
+    for (int b = 0; b < h_hll->numBlocks; ++b) {
+        ELLPACKMatrix *block = h_hll->blocks[b];
+        int blockM = block->M;
+        int threadsPerBlock = BLOCK_SIZE;
+        int blocksPerGrid = (blockM + threadsPerBlock - 1) / threadsPerBlock;
 
-        // Lancio del kernel CUDA
-        ellpack_CUDA_product_kernel<<<numBlocks, threadsPerBlock>>>(d_block, d_vector, d_result_vector->val);
-
-        // Controllo errori CUDA
-        cudaError_t err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            printf("CUDA error: %s\n", cudaGetErrorString(err));
-        }
+        hll_process_block_kernel<<<blocksPerGrid, threadsPerBlock>>>(
+            d_blocks[b],
+            d_vector,
+            d_result,
+            block->startRow
+        );
     }
 
-    // Copia dei risultati dalla GPU alla memoria host
-    cudaMemcpy(h_result_vector->val, d_result_vector->val, h_hll->M * sizeof(MatVal), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    cudaMemcpy(h_result_vector->val, d_result, h_hll->M * sizeof(MatVal), cudaMemcpyDeviceToHost);
 
-    // Pulizia della memoria GPU
+    double check = checkResultVector(serial_vector, h_result_vector);
+    if (check) {
+        fprintf(stderr, "\033[1;31m[Error] checkResultVector failed in hll_CUDA_product: %f\033[0m\n", check);
+    }
+
     cudaFree(d_vector);
-    cudaFree(d_result_vector);
-
-    // Restituisce il vettore risultato
+    cudaFree(d_result);
     return h_result_vector;
 }
-
-
