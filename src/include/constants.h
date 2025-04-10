@@ -16,6 +16,6 @@ static const char MATRIX_TEST_FOLDER_DEFAULT[] = "../matrixTest/";
 
 // Typedefs for matrix storage
 typedef int MatT; // Used for row/column indices, non-zero count, data info and others
-typedef float MatVal; // Used for matrix values
+typedef double MatVal; // Used for matrix values
 
 #endif // CONSTANTS_H

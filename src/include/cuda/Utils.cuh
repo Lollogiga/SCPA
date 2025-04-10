@@ -33,5 +33,6 @@ ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec);
 void downloadResultVectorToHost(ResultVector *hostResultVector, const ResultVector *deviceResultVector);
 
 void freeCSRDevice(CSRMatrix *d_csr_ptr);
+void freeResultVectorFromDevice(ResultVector *d_result_vector);
 
 #endif//CUDAUTILS_CUH

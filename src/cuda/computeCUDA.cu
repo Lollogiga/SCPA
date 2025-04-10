@@ -40,31 +40,48 @@ __global__ void spmv_csr_kernel_sol1(CSRMatrix *csr, MatVal *x, ResultVector *re
 }
 
 // Test 2
-__device__ inline MatVal warpReduceSum(MatVal val) {
+__device__ inline MatVal warpReduceSum(MatVal val, unsigned int mask) {
     for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
-        val += __shfl_down_sync(0xFFFFFFFF, val, offset);
+        val += __shfl_down_sync(mask, val, offset);
     }
     return val;
 }
 
-__global__ void spmv_csr_warp(CSRMatrix *csr, MatVal *x, ResultVector *result) {
-    int warp_id = blockIdx.x * (blockDim.x / WARP_SIZE) + threadIdx.x / WARP_SIZE;  // Warp globale
-    int lane = threadIdx.x % WARP_SIZE;  // ID del thread nel warp
+__device__ inline float warpReduceSumKahan(MatVal val, unsigned int mask) {
+    MatVal sum = val;
+    float c = 0.0f;  // compensazione
 
-    if (warp_id < csr->M) {  // Ogni warp lavora su una riga
-        MatVal sum = 0.0;
+    for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+        float y = __shfl_down_sync(mask, sum, offset) - c;
+        float t = sum + y;
+        c = (t - sum) - y;
+        sum = t;
+    }
+
+    return sum;
+}
+
+__global__ void spmv_csr_warp(CSRMatrix *csr, const MatVal *x, ResultVector *result) {
+    int warp_id = blockIdx.x * (blockDim.x / WARP_SIZE) + threadIdx.x / WARP_SIZE;
+    int lane = threadIdx.x % WARP_SIZE;
+
+    if (warp_id < csr->M) {
         int row_start = csr->IRP[warp_id];
         int row_end = csr->IRP[warp_id + 1];
+        MatVal sum = 0.0;
 
-        // Ogni thread nel warp processa un pezzo della riga
         for (int i = row_start + lane; i < row_end; i += WARP_SIZE) {
-            sum += csr->AS[i] * x[csr->JA[i]];
+            if (i < row_end) sum += csr->AS[i] * x[csr->JA[i]];
         }
 
-        // Riduzione della somma tra i thread del warp
-        sum = warpReduceSum(sum);
+        unsigned int mask = __ballot_sync(0xFFFFFFFF, (row_start + lane) < row_end);
+        if (row_start + lane >= row_end) {
+            mask = 0;
+        }
 
-        // Scriviamo il risultato solo dal primo thread del warp
+        sum = warpReduceSum(sum, mask);
+        // sum = warpReduceSumKahan(sum, mask);
+
         if (lane == 0) {
             result->val[warp_id] = sum;
         }
@@ -129,33 +146,98 @@ __global__ void find_max_nnz_per_row(int M, CSRMatrix *csr, int *max_nnz) {
     if (threadIdx.x == 0) atomicMax(max_nnz, local_max);
 }
 
-__global__ void spmv_csr_kernel_shared_memery_2(CSRMatrix *csr, float *x, ResultVector *result, int max_nnz) {
+__global__ void spmv_csr_kernel_shared_memery_2(CSRMatrix *csr, MatVal *x, ResultVector *result, int max_nnz) {
     int row = blockIdx.x;  // Un blocco per riga
     int tid = threadIdx.x; // Thread all'interno del blocco
+    int block_size = blockDim.x;
 
     int start = csr->IRP[row];
     int end = csr->IRP[row + 1];
 
     MatVal sum = 0.0f;
-    for (int j = start + tid; j < end; j += blockDim.x) {
+
+    // Calcolo del prodotto matrice-vettore per la riga "row"
+    for (int j = start + tid; j < end; j += block_size) {
         sum += csr->AS[j] * x[csr->JA[j]];
     }
 
-    // Riduzione parallela nella memoria condivisa
-    __shared__ float shared_sum[1024];
+    // Memoria condivisa per la somma parziale
+    __shared__ double shared_sum[1024];
     shared_sum[tid] = sum;
     __syncthreads();
 
-    // Riduzione finale (warp shuffle)
-    for (int offset = blockDim.x / 2; offset > 0; offset /= 2) {
+    // Riduzione parallela usando la memoria condivisa
+    for (int offset = block_size / 2; offset > 0; offset /= 2) {
         if (tid < offset) {
             shared_sum[tid] += shared_sum[tid + offset];
         }
         __syncthreads();
     }
 
+    // Scrivi il risultato finale se il thread è il thread 0
     if (tid == 0) {
         result->val[row] = shared_sum[0];
+    }
+}
+
+// Test 6
+__global__ void spmv_crs_kernel_fullvector(CSRMatrix *csr, MatVal *product, MatVal *x) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index < csr->NZ) {
+        product[index] = csr->AS[index] * x[csr->JA[index]];
+    }
+}
+
+__global__ void reduce_global_product(CSRMatrix *csr, MatVal *product, ResultVector *result) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (row < csr->M) {
+        int row_start = csr->IRP[row];
+        int row_end = csr->IRP[row + 1];
+
+        for (int i = row_start; i < row_end; i++) {
+            result->val[row] += product[i];
+        }
+    }
+}
+
+// Test 7
+__global__ void spmv_csr_block(const CSRMatrix *csr, const MatVal *x, ResultVector *result) {
+    int row = blockIdx.x;
+    int tid = threadIdx.x;
+    int block_size = blockDim.x;
+
+    if (row >= csr->M) return;
+
+    int row_start = csr->IRP[row];
+    int row_end   = csr->IRP[row + 1];
+
+    extern __shared__ float sdata[];  // shared memory per le somme locali
+    float sum = 0.0f;
+
+    // Step 1: ogni thread lavora su una porzione della riga
+    for (int i = row_start + tid; i < row_end; i += block_size) {
+        int col = csr->JA[i];
+        float val = csr->AS[i];
+        sum += val * x[col];
+    }
+
+    // Step 2: riduzione in shared memory
+    sdata[tid] = sum;
+    __syncthreads();
+
+    // Riduzione standard (oppure Kahan qui se vuoi più stabilità)
+    for (int offset = block_size / 2; offset > 0; offset >>= 1) {
+        if (tid < offset) {
+            sdata[tid] += sdata[tid + offset];
+        }
+        __syncthreads();
+    }
+
+    // Step 3: scrittura del risultato
+    if (tid == 0) {
+        result->val[row] = sdata[0];
     }
 }
 
@@ -163,6 +245,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     CUDA_EVENT_CREATE(start, stop)
 
     float elapsedTime;
+    double check;
 
     CSRMatrix *d_csr = uploadCSRToDevice(h_csr);
 
@@ -184,17 +267,24 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     MatVal* d_y;
     cudaMalloc(&d_y, h_csr->M * sizeof(MatVal));
 
+    // SOL SERIAL
     CUDA_EVENT_START(start)
     spmv_csr_serial<<<1, 1>>>(d_csr, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSerial: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     downloadResultVectorToHost(h_result_vector, d_result_vector);
-    if (checkResultVector(serial, h_result_vector)) {
-        perror("Error checkResultVector in spmv_csr_serial \n");
+    check = checkResultVector(serial, h_result_vector);
+    if (check) {
+        perror("\033[31mError checkResultVector in spmv_csr_serial \033[0m\n");
 
         // return -1;
     }
+    freeResultVectorFromDevice(d_result_vector);
+
+    // SOL 1
+    for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
+    d_result_vector = uploadResultVectorToDevice(h_result_vector);
 
     CUDA_EVENT_START(start)
     spmv_csr_kernel_sol1<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
@@ -202,11 +292,43 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     downloadResultVectorToHost(h_result_vector, d_result_vector);
-    if (checkResultVector(serial, h_result_vector)) {
-        perror("Error checkResultVector in CudaSol1 \n");
+    check = checkResultVector(serial, h_result_vector);
+    if (check) {
+        perror("\033[31mError checkResultVector in CudaSol1 \033[0m\n");
 
         // return -1;
     }
+    freeResultVectorFromDevice(d_result_vector);
+
+    // SOL 6
+    for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
+    d_result_vector = uploadResultVectorToDevice(h_result_vector);
+
+    MatVal* d_product;
+    cudaMalloc(&d_product, h_csr->NZ * sizeof(MatVal));
+
+    blocksPerGrid = (h_csr->NZ + warpsPerBlock - 1) / warpsPerBlock;
+
+    CUDA_EVENT_START(start)
+    spmv_crs_kernel_fullvector<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_product, d_x);
+    cudaDeviceSynchronize();
+
+    blocksPerGrid = (h_csr->M + warpsPerBlock - 1) / warpsPerBlock;
+    reduce_global_product<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_product, d_result_vector);
+    CUDA_EVENT_STOP(stop)
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    printf("CudaSol6: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (checkResultVector(serial, h_result_vector)) {
+        perror("\033[31mError checkResultVector in CudaSol6 \033[0m\n");
+
+        // return -1;
+    }
+    freeResultVectorFromDevice(d_result_vector);
+
+    // SOL 2
+    for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
+    d_result_vector = uploadResultVectorToDevice(h_result_vector);
 
     CUDA_EVENT_START(start)
     spmv_csr_warp<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
@@ -214,11 +336,23 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
     printf("CudaSol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     downloadResultVectorToHost(h_result_vector, d_result_vector);
-    if (checkResultVector(serial, h_result_vector)) {
-        perror("Error checkResultVector in CudaSol2 \n");
+    check = checkResultVector(serial, h_result_vector);
+    if (check) {
+        printf("check = %.0f\n", check);
+        perror("\033[31mError checkResultVector in CudaSol2\033[0m\n");
+
+        // for (int i = 0; i < h_csr->M; i++) {
+        //     if (serial->val[i] != h_result_vector->val[i])
+        //         printf("serial [%f] - [%f] cuda_sol2\n", serial->val[i], h_result_vector->val[i]);
+        // }
 
         // return -1;
     }
+    freeResultVectorFromDevice(d_result_vector);
+
+    // SOL 3
+    for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
+    d_result_vector = uploadResultVectorToDevice(h_result_vector);
 
     CUDA_EVENT_START(start)
     spmv_csr_shared<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
@@ -227,10 +361,15 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     printf("CudaSol3: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (checkResultVector(serial, h_result_vector)) {
-        perror("Error checkResultVector in CudaSol3 \n");
+        perror("\033[31mError checkResultVector in CudaSol3 \033[0m\n");
 
         // return -1;
     }
+    freeResultVectorFromDevice(d_result_vector);
+
+    // SOL 5
+    for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
+    d_result_vector = uploadResultVectorToDevice(h_result_vector);
 
     int *d_max_nnz;
     cudaMalloc(&d_max_nnz, sizeof(int));
@@ -243,13 +382,36 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     spmv_csr_kernel_shared_memery_2<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector, max_nnz_per_row);
     CUDA_EVENT_STOP(stop)
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    printf("CudaSol4: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    printf("CudaSol5: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (checkResultVector(serial, h_result_vector)) {
-        perror("Error checkResultVector in CudaSol4 \n");
+        perror("\033[31mError checkResultVector in CudaSol5 \033[0m\n");
 
         // return -1;
     }
+    freeResultVectorFromDevice(d_result_vector);
+
+    // SOL 7
+    int block_size = 64;
+    int num_rows = h_csr->M;
+    size_t shared_mem_bytes = block_size * sizeof(MatVal);
+    for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
+    d_result_vector = uploadResultVectorToDevice(h_result_vector);
+
+    CUDA_EVENT_START(start)
+    spmv_csr_block<<<num_rows, block_size, shared_mem_bytes>>>(
+        d_csr, d_x, d_result_vector
+    );
+    CUDA_EVENT_STOP(stop)
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    printf("CudaSol7: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (checkResultVector(serial, h_result_vector)) {
+        perror("\033[31mError checkResultVector in CudaSol7 \033[0m\n");
+
+        // return -1;
+    }
+    freeResultVectorFromDevice(d_result_vector);
 
     freeCSRDevice(d_csr);
     cudaFree(d_x);
@@ -267,7 +429,11 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
     ResultVector *serial = csr_serialProduct(csr, vector);
 
     csr_product(csr, serial);
-    hll_CUDA_product(hll, serial);
+    // hll_CUDA_product(hll, serial);
+
+    int sharedMemPerBlock;
+    cudaDeviceGetAttribute(&sharedMemPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);
+
 
     // cudaDeviceProp prop;
     // cudaGetDeviceProperties(&prop, 0);

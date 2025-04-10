@@ -65,3 +65,16 @@ void freeCSRDevice(CSRMatrix *d_csr_ptr) {
     cudaFree(h_temp.AS);
     cudaFree(d_csr_ptr);
 }
+
+void freeResultVectorFromDevice(ResultVector *d_result_vector) {
+    // 1. Copia la struttura dal device all'host per accedere ai campi
+    ResultVector h_temp;
+    cudaMemcpy(&h_temp, d_result_vector, sizeof(ResultVector), cudaMemcpyDeviceToHost);
+
+    // 2. Libera il campo val (array device)
+    cudaFree(h_temp.val);
+
+    // 3. Libera la struttura vera e propria (device)
+    cudaFree(d_result_vector);
+}
+
