@@ -95,8 +95,6 @@ ThreadDataRange *matrixBalanceHLL(HLLMatrix *hll, int numThreads) {
         return NULL;
     }
 
-    if (numThreads > hll->numBlocks) numThreads = hll->numBlocks;
-
     int current_weight = 0;
     int thread_idx = 0;
     threadRanges[thread_idx].start = 0;
@@ -146,8 +144,6 @@ ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrixAligned *hll, int numThreads) {
         return NULL;
     }
 
-    if (numThreads > hll->numBlocks) numThreads = hll->numBlocks;
-
     int total_weight = 0;
 
     // Iterazione sui blocchi HLL
@@ -170,7 +166,7 @@ ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrixAligned *hll, int numThreads) {
     int avg_weight_per_thread = total_weight / numThreads;
 
     // Allocazione della struttura che gestisce le assegnazioni dei blocchi per thread
-    ThreadDataRange *threadRanges = malloc(sizeof(ThreadDataRange) * numThreads);
+    ThreadDataRange *threadRanges = calloc(sizeof(ThreadDataRange), numThreads);
     if (!threadRanges) {
         perror("matrixBalanceHLL: threadRanges allocation error");
         free(block_weights);
@@ -194,3 +190,4 @@ ThreadDataRange *matrixBalanceHLL_sol2(HLLMatrixAligned *hll, int numThreads) {
 
     return threadRanges;
 }
+
