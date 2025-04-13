@@ -155,19 +155,20 @@ int main(int argc, char *argv[]) {
 #else
     printf("TESTING ON SINGLE FILE\n\n");
 
-    // computeMatrix("../matrixTest/ns_example.mtx");
-    // computeMatrix("../matrixTest/pat_example.mtx");
-    // computeMatrix("../matrixTest/sym_example.mtx");
+    computeMatrix("../matrixTest/ns_example.mtx");
+    computeMatrix("../matrixTest/pat_example.mtx");
+    computeMatrix("../matrixTest/sym_example.mtx");
 
 
     // printf("\n ../matrixTest/mhda416.mtx\n");
-    // computeMatrix("../matrixTest/mhda416.mtx");
+    computeMatrix("../matrixTest/mhda416.mtx");
 
-    printf("\n../matrixTest/cant.mtx\n");
+    // printf("\n../matrixTest/cant.mtx\n");
     computeMatrix("../matrixTest/cant.mtx");
-    //computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
-    // computeMatrix("../matrix/ML_Laplace.mtx");
+    computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
+    computeMatrix("../matrix/ML_Laplace.mtx");
 #endif
+
 
     closedir(dir);
     free(folder);

@@ -1,5 +1,6 @@
 #include <omp.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "../include/mtxBalance.h"
 #include "../include/mtxFree.h"
@@ -250,7 +251,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,hll_product) < 0) {
-        perror("Error checkResultVector HllAligned solution 3\n");
+        perror("Error checkResultVector HllAligned solution 2\n");
         free_ResultVector(hll_product);
         return -1;
     }
@@ -272,6 +273,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
         return -1;
     }
     free_ResultVector(hll_product);
+    free(tdr);
     printf("hllAligned_openmp3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
     return 0;
@@ -291,6 +293,12 @@ int computeOpenMP(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *
     res = csrProduct_OpenMP(csrMatrix, vector, num_threads, csr_product);
     free_ResultVector(csr_product);
     if (res) return -1;
+
+    if (num_threads > hllMatrix->numBlocks) {
+        num_threads = hllMatrix->numBlocks;
+        printf("\n\033[32;7mNumber of threads exceeds the number of hll blocks\033[0m\n");
+        printf("\n\033[32;7m# of threads per hll:\033[0;32m %d\033[0m\n", num_threads);
+    }
 
     ResultVector *hll_product = hllProduct_Serial(hllMatrix, vector);
     res = hllProduct_OpenMP(hllMatrix, vector, num_threads, hll_product);
