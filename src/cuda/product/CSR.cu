@@ -14,28 +14,6 @@ __global__ void csr_cudaProduct_sol1(CSRMatrix *csr, MatVal *v, ResultVector *re
 }
 
 // Sol 2
-__global__ void csr_cudaProduct_sol2_product(CSRMatrix *csr, MatVal *v_product, MatVal *x) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (index < csr->NZ) {
-        v_product[index] = csr->AS[index] * x[csr->JA[index]];
-    }
-}
-
-__global__ void csr_cudaProduct_sol2_reduce(CSRMatrix *csr, MatVal *v_product, ResultVector *result) {
-    int row = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (row < csr->M) {
-        int row_start = csr->IRP[row];
-        int row_end = csr->IRP[row + 1];
-
-        for (int i = row_start; i < row_end; i++) {
-            result->val[row] += v_product[i];
-        }
-    }
-}
-
-// Sol 3
 __device__ inline MatVal warpReduceSum(MatVal val, const unsigned int mask) {
     for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
         val += __shfl_down_sync(mask, val, offset);
@@ -43,7 +21,7 @@ __device__ inline MatVal warpReduceSum(MatVal val, const unsigned int mask) {
     return val;
 }
 
-__global__ void csr_cudaProduct_sol3(CSRMatrix *csr, MatVal *v, ResultVector *result) {
+__global__ void csr_cudaProduct_sol2(CSRMatrix *csr, MatVal *v, ResultVector *result) {
     int warp_id = blockIdx.x * (blockDim.x / WARP_SIZE) + threadIdx.x / WARP_SIZE;
     int lane = threadIdx.x % WARP_SIZE;
 

@@ -163,8 +163,8 @@ int main(int argc, char *argv[]) {
     // printf("\n ../matrixTest/mhda416.mtx\n");
     // computeMatrix("../matrixTest/mhda416.mtx");
 
-    printf("\n../matrixTest/cant.mtx\n");
-    // computeMatrix("../matrixTest/cant.mtx");
+    // printf("\n../matrixTest/cant.mtx\n");
+    computeMatrix("../matrixTest/cant.mtx");
     computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
     // computeMatrix("../matrix/ML_Laplace.mtx");
 #endif

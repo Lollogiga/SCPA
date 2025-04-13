@@ -87,7 +87,7 @@ int freeCSRDevice(CSRMatrix *d_csr_ptr) {
     CSRMatrix h_temp;
     err = cudaMemcpy(&h_temp, d_csr_ptr, sizeof(CSRMatrix), cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        printf("\033[31mdownloadResultVectorToHost - cudaMemcpy CSRMatrix failed: %s\033[0m\n", cudaGetErrorString(err));
+        printf("\033[31mfreeCSRDevice - cudaMemcpy CSRMatrix failed: %s\033[0m\n", cudaGetErrorString(err));
 
         return -1;
     }

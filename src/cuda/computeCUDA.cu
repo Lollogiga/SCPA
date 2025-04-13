@@ -222,85 +222,6 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     freeResultVectorFromDevice(d_result_vector);
 
     // SOL 2
-    // for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
-    // d_result_vector = uploadResultVectorToDevice(h_result_vector);
-    // if (d_result_vector == nullptr) {
-    //     printf("\033[31mcsr_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
-    //
-    //     freeCSRDevice(d_csr);
-    //     free_vector(h_x);
-    //     cudaFree(d_x);
-    //     free_result_vector(h_result_vector);
-    //     freeResultVectorFromDevice(d_result_vector);
-    //     CUDA_EVENT_DESTROY(start, stop)
-    //     return -1;
-    // }
-    //
-    // MatVal* d_product;
-    // cuda_error = cudaMalloc(&d_product, h_csr->NZ * sizeof(MatVal));
-    // if (cuda_error != cudaSuccess) {
-    //     printf("\033[31mcsr_product - cudaMalloc d_product failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-    //
-    //     freeCSRDevice(d_csr);
-    //     free_vector(h_x);
-    //     cudaFree(d_x);
-    //     free_result_vector(h_result_vector);
-    //     freeResultVectorFromDevice(d_result_vector);
-    //     CUDA_EVENT_DESTROY(start, stop)
-    //     return -1;
-    // }
-    //
-    // blocksPerGrid = (h_csr->NZ + warpsPerBlock - 1) / warpsPerBlock;
-    //
-    // CUDA_EVENT_START(start)
-    // csr_cudaProduct_sol2_product<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_product, d_x);
-    // cudaDeviceSynchronize();
-    //
-    // blocksPerGrid = (h_csr->M + warpsPerBlock - 1) / warpsPerBlock;
-    // csr_cudaProduct_sol2_reduce<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_product, d_result_vector);
-    // CUDA_EVENT_STOP(stop)
-    // cuda_error = cudaGetLastError();
-    // CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    // if (cuda_error) {
-    //     printf("\033[31mcsr_product - csr_cudaProduct_sol2 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-    //
-    //     freeCSRDevice(d_csr);
-    //     free_vector(h_x);
-    //     cudaFree(d_x);
-    //     free_result_vector(h_result_vector);
-    //     freeResultVectorFromDevice(d_result_vector);
-    //     CUDA_EVENT_DESTROY(start, stop)
-    //     return -1;
-    // }
-    // printf("csr_cudaProduct_sol2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
-    // int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
-    // if (int_err != 0) {
-    //     printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol2 failed\033[0m\n");
-    //
-    //     freeCSRDevice(d_csr);
-    //     free_vector(h_x);
-    //     cudaFree(d_x);
-    //     free_result_vector(h_result_vector);
-    //     freeResultVectorFromDevice(d_result_vector);
-    //     CUDA_EVENT_DESTROY(start, stop)
-    //     return -1;
-    // }
-    // int_err = checkResultVector(serial, h_result_vector);
-    // if (int_err) {
-    //     printf("\033[31mcsr_product - checkResultVector csr_cudaProduct_sol2 failed\033[0m\n");
-    //
-    //     freeCSRDevice(d_csr);
-    //     free_vector(h_x);
-    //     cudaFree(d_x);
-    //     free_result_vector(h_result_vector);
-    //     freeResultVectorFromDevice(d_result_vector);
-    //     CUDA_EVENT_DESTROY(start, stop)
-    //     return -1;
-    // }
-    // freeResultVectorFromDevice(d_result_vector);
-    // cudaFree(d_product);
-
-    // SOL 3
     for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
     d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
@@ -318,11 +239,11 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     blocksPerGrid = (h_csr->M + warpsPerBlock - 1) / warpsPerBlock;
 
     CUDA_EVENT_START(start)
-    csr_cudaProduct_sol3<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
+    csr_cudaProduct_sol2<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     cuda_error = cudaGetLastError();
     if (cuda_error) {
-        printf("\033[31mcsr_product - csr_cudaProduct_sol3 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+        printf("\033[31mcsr_product - csr_cudaProduct_sol2 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
 
         freeCSRDevice(d_csr);
         free_vector(h_x);
@@ -336,7 +257,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     printf("CudaSol3: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
-        printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol3 failed\033[0m\n");
+        printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol2 failed\033[0m\n");
 
         freeCSRDevice(d_csr);
         free_vector(h_x);
@@ -348,7 +269,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     }
     int_err = checkResultVector(serial, h_result_vector);
     if (int_err) {
-        printf("\033[31mcsr_product - checkResultVector csr_cudaProduct_sol3 failed\033[0m\n");
+        printf("\033[31mcsr_product - checkResultVector csr_cudaProduct_sol2 failed\033[0m\n");
 
         // TODO capire se quest'errore è accettabile oppure no... lo da solo su una matrice: Cube_Coup_dt0
         analyzeErrorVector(serial, h_result_vector);
