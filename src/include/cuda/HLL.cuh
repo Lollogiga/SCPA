@@ -7,5 +7,5 @@
 
 #include "../mtxStructs.h"
 
-ResultVector *hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial);
+int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial);
 #endif //CUDAHLL_CUH

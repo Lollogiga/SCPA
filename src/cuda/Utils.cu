@@ -80,7 +80,6 @@ CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr) {
 
     return d_csr_ptr;
 }
-
 int freeCSRDevice(CSRMatrix *d_csr_ptr) {
     cudaError_t err;
 
@@ -99,6 +98,99 @@ int freeCSRDevice(CSRMatrix *d_csr_ptr) {
 
     return 0;
 }
+
+HLLMatrix* uploadHLLToDevice(const HLLMatrix* h_hll) {
+    HLLMatrix* d_hll;
+    cudaMalloc(&d_hll, sizeof(HLLMatrix));
+
+    // Copia metadati base
+    cudaMemcpy(d_hll, h_hll, sizeof(HLLMatrix), cudaMemcpyHostToDevice);
+
+    // Alloca array di puntatori ai blocchi su device
+    ELLPACKMatrix** d_blocks;
+    cudaMalloc(&d_blocks, h_hll->numBlocks * sizeof(ELLPACKMatrix*));
+
+    for (MatT i = 0; i < h_hll->numBlocks; i++) {
+        ELLPACKMatrix* h_block = h_hll->blocks[i];
+        ELLPACKMatrix* d_block;
+        cudaMalloc(&d_block, sizeof(ELLPACKMatrix));
+
+        // Copia campi non-puntatore
+        cudaMemcpy(d_block, h_block, sizeof(ELLPACKMatrix), cudaMemcpyHostToDevice);
+
+        // Gestione JA
+        MatT** d_JA;
+        cudaMalloc(&d_JA, h_block->M * sizeof(MatT*));
+        for (MatT j = 0; j < h_block->M; j++) {
+            MatT* d_row;
+            cudaMalloc(&d_row, h_block->MAXNZ * sizeof(MatT));
+            cudaMemcpy(d_row, h_block->JA[j], h_block->MAXNZ * sizeof(MatT), cudaMemcpyHostToDevice);
+            cudaMemcpy(&d_JA[j], &d_row, sizeof(MatT*), cudaMemcpyHostToDevice);
+        }
+        cudaMemcpy(&d_block->JA, &d_JA, sizeof(MatT**), cudaMemcpyHostToDevice);
+
+        // Gestione AS (analogo a JA)
+        MatVal** d_AS;
+        cudaMalloc(&d_AS, h_block->M * sizeof(MatVal*));
+        for (MatT j = 0; j < h_block->M; j++) {
+            MatVal* d_row;
+            cudaMalloc(&d_row, h_block->MAXNZ * sizeof(MatVal));
+            cudaMemcpy(d_row, h_block->AS[j], h_block->MAXNZ * sizeof(MatVal), cudaMemcpyHostToDevice);
+            cudaMemcpy(&d_AS[j], &d_row, sizeof(MatVal*), cudaMemcpyHostToDevice);
+        }
+        cudaMemcpy(&d_block->AS, &d_AS, sizeof(MatVal**), cudaMemcpyHostToDevice);
+
+        // Aggiorna array blocchi
+        cudaMemcpy(&d_blocks[i], &d_block, sizeof(ELLPACKMatrix*), cudaMemcpyHostToDevice);
+    }
+
+    cudaMemcpy(&d_hll->blocks, &d_blocks, sizeof(ELLPACKMatrix**), cudaMemcpyHostToDevice);
+    return d_hll;
+}
+
+void freeHLLDevice(HLLMatrix* d_hll) {
+    ELLPACKMatrix** d_blocks;
+    cudaMemcpy(&d_blocks, &d_hll->blocks, sizeof(ELLPACKMatrix**), cudaMemcpyDeviceToHost);
+
+    MatT numBlocks;
+    cudaMemcpy(&numBlocks, &d_hll->numBlocks, sizeof(MatT), cudaMemcpyDeviceToHost);
+
+    for (MatT i = 0; i < numBlocks; i++) {
+        ELLPACKMatrix* d_block;
+        cudaMemcpy(&d_block, &d_blocks[i], sizeof(ELLPACKMatrix*), cudaMemcpyDeviceToHost);
+
+        MatT M;
+        cudaMemcpy(&M, &d_block->M, sizeof(MatT), cudaMemcpyDeviceToHost);
+
+        // Dealloca JA
+        MatT** d_JA;
+        cudaMemcpy(&d_JA, &d_block->JA, sizeof(MatT**), cudaMemcpyDeviceToHost);
+        for (MatT j = 0; j < M; j++) {
+            MatT* d_row;
+            cudaMemcpy(&d_row, &d_JA[j], sizeof(MatT*), cudaMemcpyDeviceToHost);
+            cudaFree(d_row);
+        }
+        cudaFree(d_JA);
+
+        // Dealloca AS (analogo a JA)
+        MatVal** d_AS;
+        cudaMemcpy(&d_AS, &d_block->AS, sizeof(MatVal**), cudaMemcpyDeviceToHost);
+        for (MatT j = 0; j < M; j++) {
+            MatVal* d_row;
+            cudaMemcpy(&d_row, &d_AS[j], sizeof(MatVal*), cudaMemcpyDeviceToHost);
+            cudaFree(d_row);
+        }
+        cudaFree(d_AS);
+
+        cudaFree(d_block);
+    }
+
+    cudaFree(d_blocks);
+    cudaFree(d_hll);
+}
+
+
+
 
 ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec) {
     cudaError_t err;
@@ -138,6 +230,8 @@ ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec) {
 
     return d_vec_ptr;
 }
+
+
 
 int freeResultVectorFromDevice(ResultVector *d_result_vector) {
     cudaError_t err;

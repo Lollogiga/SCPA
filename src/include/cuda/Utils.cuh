@@ -27,11 +27,15 @@ cudaEventElapsedTime(&elapsedTime, start, stop); \
 elapsedTime /= 1000;
 
 CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr);
+HLLMatrix* uploadHLLToDevice(const HLLMatrix* h_hll);
+
 ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec);
 
 int downloadResultVectorToHost(ResultVector *hostResultVector, const ResultVector *deviceResultVector);
 
 int freeCSRDevice(CSRMatrix *d_csr_ptr);
+void freeHLLDevice(HLLMatrix* d_hll);
+
 int freeResultVectorFromDevice(ResultVector *d_result_vector);
 
 #endif//CUDAUTILS_CUH

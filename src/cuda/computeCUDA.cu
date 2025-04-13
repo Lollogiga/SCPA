@@ -104,18 +104,6 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         return -1;
     }
 
-    MatVal* d_y;
-    cuda_error = cudaMalloc(&d_y, h_csr->M * sizeof(MatVal));
-    if (cuda_error != cudaSuccess) {
-        printf("\033[31mcsr_product - cudaMalloc d_y failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        freeCSRDevice(d_csr);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        return -1;
-    }
 
     CUDA_EVENT_CREATE(start, stop)
 
@@ -296,7 +284,6 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
 
     freeCSRDevice(d_csr);
     cudaFree(d_x);
-    cudaFree(d_y);
 
     CUDA_EVENT_DESTROY(start, stop)
 
@@ -305,6 +292,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     return 0;
 }
 
+
 extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hllAligned, int num_threads) {
     MatVal *vector = create_vector(csr->N);
     if (vector == nullptr) return -1;
@@ -312,7 +300,7 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
     ResultVector *serial = csr_serialProduct(csr, vector);
 
     csr_product(csr, serial);
-    // hll_CUDA_product(hll, serial);
+    hll_CUDA_product(hll, serial);
 
     int sharedMemPerBlock;
     cudaDeviceGetAttribute(&sharedMemPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);

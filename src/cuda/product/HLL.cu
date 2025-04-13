@@ -1,124 +1,317 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "../../include/cuda/Serial.cuh"
 #include "../../include/cuda/HLL.cuh"
 #include "../../include/createVector.h"
 #include "../../include/cuda/Utils.cuh"
+#include "../../include/flops.h"
+#include "../../include/checkResultVector.h"
 
 #define WARP_SIZE 32 // Impostato a 32 rispetto al server di dipartimento con sopra montata una Quadro RTX 5000
 #define BLOCK_SIZE 1024 // Il server ha a disposizione al massimo 1024 thread attivi contemporaneamente
 #define MAX_NZ_PER_BLOCK 1024
 
-// Funzione che carica la matrice HLL sulla GPU e la restituisce come puntatore
-HLLMatrix* uploadHLLToDevice(HLLMatrix *hll) {
-    HLLMatrix *d_hll;
 
-    // Allocazione memoria per la struttura HLLMatrix sulla GPU
-    cudaMalloc((void**)&d_hll, sizeof(HLLMatrix));
+__global__ void spmv_hll_parallel(HLLMatrix *hll, const MatVal *vector, ResultVector *result) {
+    const int block_id = blockIdx.x;
+    const int thread_id = threadIdx.x;
 
-    // Copia della struttura HLLMatrix dalla memoria host alla memoria device
-    cudaMemcpy(d_hll, hll, sizeof(HLLMatrix), cudaMemcpyHostToDevice);
+    if(block_id >= hll->numBlocks) return;
 
-    // Allocazione della memoria per i blocchi ELLPACKMatrix sulla GPU
-    cudaMalloc((void**)&(d_hll->blocks), hll->numBlocks * sizeof(ELLPACKMatrix*));
+    ELLPACKMatrix *blk = hll->blocks[block_id];
 
-    // Ciclo per copiare ogni blocco ELLPACKMatrix sulla GPU
-    for (int blockIdx = 0; blockIdx < hll->numBlocks; blockIdx++) {
-        ELLPACKMatrix *block = hll->blocks[blockIdx];
-        ELLPACKMatrix *d_block;
+    if(thread_id >= blk->M) return;
 
-        // Allocazione memoria per ogni blocco ELLPACKMatrix sulla GPU
-        cudaMalloc((void**)&d_block, sizeof(ELLPACKMatrix));
+    MatVal sum = 0.0;
+#pragma unroll
+    for(MatT j = 0; j < blk->MAXNZ; j++) {
+        const MatT col = blk->JA[thread_id][j];
+        sum += blk->AS[thread_id][j] * vector[col];
+    }
+    result->val[blk->startRow + thread_id] = sum;
+}
 
-        // Copia della struttura ELLPACKMatrix dalla memoria host alla memoria device
-        cudaMemcpy(d_block, block, sizeof(ELLPACKMatrix), cudaMemcpyHostToDevice);
+__global__ void spmv_hll_coalesced(HLLMatrix *hll, const MatVal *vector, ResultVector *result) {
+    const int block_id = blockIdx.x;
+    const int thread_id = threadIdx.x;
 
-        // Allocazione memoria per i dati del blocco (JA e AS)
-        cudaMalloc((void**)&(d_block->JA), block->M * block->MAXNZ * sizeof(MatT));
-        cudaMalloc((void**)&(d_block->AS), block->M * block->MAXNZ * sizeof(MatVal));
+    if(block_id >= hll->numBlocks) return;
 
-        // Copia dei dati di ciascun blocco (JA e AS) dalla memoria host alla memoria device
-        for (MatT row = 0; row < block->M; row++) {
-            cudaMemcpy(d_block->JA[row], block->JA[row], block->MAXNZ * sizeof(MatT), cudaMemcpyHostToDevice);
-            cudaMemcpy(d_block->AS[row], block->AS[row], block->MAXNZ * sizeof(MatVal), cudaMemcpyHostToDevice);
-        }
+    ELLPACKMatrix *blk = hll->blocks[block_id];
 
-        // Aggiornamento dell'array di blocchi nella memoria del dispositivo
-        cudaMemcpy(&(d_hll->blocks[blockIdx]), &d_block, sizeof(ELLPACKMatrix*), cudaMemcpyHostToDevice);
+    if(thread_id >= blk->M) return;
+
+    MatVal sum = 0.0;
+#pragma unroll
+    for(MatT j = 0; j < blk->MAXNZ; j++) {
+        const MatT col = blk->JA[thread_id][j];
+        sum += blk->AS[thread_id][j] * vector[col];
     }
 
-    // Restituzione del puntatore alla matrice HLLMatrix sulla GPU
-    return d_hll;
+    // Coalescenza: Accesso contiguo alla memoria
+    result->val[blk->startRow + thread_id] = sum;
 }
 
 
-__global__ void ellpack_CUDA_product_kernel(ELLPACKMatrix *d_block, MatVal *d_vector, MatVal *d_result) {
-    int row = threadIdx.x + blockIdx.x * blockDim.x;
+int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result)
+{
+    cudaError_t cuda_error;
+    int int_err;
 
-    if (row < d_block->M) {
-        MatT *JA = d_block->JA[row];
-        MatVal *AS = d_block->AS[row];
+    float elapsedTime;
 
-        // Moltiplicazione della matrice per il vettore, con somma atomica
-        for (int i = 0; i < d_block->MAXNZ; i++) {
-            if (JA[i] >= 0) {
-                atomicAdd(&d_result[row], AS[i] * d_vector[JA[i]]);
-            }
-        }
-    }
-}
-
-
-ResultVector *hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_vector) {
-    if (!h_hll || !serial_vector) {
-        perror("hll_CUDA_product: NULL pointer detected");
-        return NULL;
+    if (!h_hll || !serial_result)
+    {
+       perror("Hll_cuda_product failed: Input not initialized");
+        return -1;
     }
 
-    // Creazione del vettore risultato sulla GPU
-    ResultVector *h_result_vector = create_result_vector(h_hll->M);  // Crea il risultato host
-    ResultVector *d_result_vector = uploadResultVectorToDevice(h_result_vector);  // Copia sulla GPU
-
-    // Creazione del vettore di input sulla GPU
-    MatVal *h_vector = create_vector(h_hll->N);
-
-    MatVal* d_vector;
-    cudaMalloc(&d_vector, h_hll->N * sizeof(MatVal));
-    cudaMemcpy(d_vector, h_vector, h_hll->N * sizeof(MatVal), cudaMemcpyHostToDevice);
-    cudaMemAdvise(d_vector, h_hll->N * sizeof(MatVal), cudaMemAdviseSetReadMostly, 0);
-    cudaMemAdvise(d_vector, h_hll->N * sizeof(MatVal), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-
-    // Ciclo sui blocchi HLL
-    for (int blockIdx = 0; blockIdx < h_hll->numBlocks; blockIdx++) {
-        ELLPACKMatrix *d_block;
-        cudaMemcpy(&d_block, &h_hll->blocks[blockIdx], sizeof(ELLPACKMatrix*), cudaMemcpyHostToDevice);
-
-        // Definizione della griglia di thread
-        dim3 threadsPerBlock(256); // Numero di thread per blocco
-        dim3 numBlocks((d_block->M + threadsPerBlock.x - 1) / threadsPerBlock.x);
-
-        // Lancio del kernel CUDA
-        ellpack_CUDA_product_kernel<<<numBlocks, threadsPerBlock>>>(d_block, d_vector, d_result_vector->val);
-
-        // Controllo errori CUDA
-        cudaError_t err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            printf("CUDA error: %s\n", cudaGetErrorString(err));
-        }
+    //Create vector:
+    MatVal *h_x = create_vector(h_hll->N);
+    if (h_x == nullptr)
+    {
+        perror("Hll_cuda_product failed: create_vector failed");
+        return -1;
     }
 
-    // Copia dei risultati dalla GPU alla memoria host
-    cudaMemcpy(h_result_vector->val, d_result_vector->val, h_hll->M * sizeof(MatVal), cudaMemcpyDeviceToHost);
+    //Upload vector on device:
+    MatVal* d_x;
+    cuda_error = cudaMallocManaged(&d_x, h_hll->N * sizeof(MatVal));
+    if (cuda_error != cudaSuccess) {
+        printf("\033[31mhll_product - cudaMallocManaged h_hll->N failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
 
-    // Pulizia della memoria GPU
-    cudaFree(d_vector);
-    cudaFree(d_result_vector);
+        free_vector(h_x);
+        return -1;
+    }
+    cuda_error = cudaMemcpy(d_x, h_x, h_hll->N * sizeof(MatVal), cudaMemcpyHostToDevice);
+    if (cuda_error != cudaSuccess) {
+        printf("\033[31mhll_product - cudaMemcpy h_x failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
 
-    // Restituisce il vettore risultato
-    return h_result_vector;
+        free_vector(h_x);
+        cudaFree(d_x);
+        return -1;
+    }
+    cuda_error = cudaMemAdvise(d_x, h_hll->N * sizeof(MatVal), cudaMemAdviseSetReadMostly, 0);
+    if (cuda_error != cudaSuccess) {
+        printf("\033[31mhll_product - cudaMemAdvise SetReadMostly failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+
+        free_vector(h_x);
+        cudaFree(d_x);
+        return -1;
+    }
+    cuda_error = cudaMemAdvise(d_x, h_hll->N * sizeof(MatVal), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
+    if (cuda_error != cudaSuccess) {
+        printf("\033[31mhll_product - cudaMemAdvise SetPreferredLocation failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+
+        free_vector(h_x);
+        cudaFree(d_x);
+        return -1;
+    }
+
+    //Create result_vector:
+    ResultVector *h_result_vector = create_result_vector(h_hll->M);
+    if (h_result_vector == nullptr)
+    {
+        perror("Hll_cuda_product failed: create_result_vector failed");
+        return -1;
+    }
+
+    // Upload result_vector on device
+    ResultVector *d_result_vector = uploadResultVectorToDevice(h_result_vector);
+    if (d_result_vector == nullptr) {
+        printf("\033[31mhll_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
+
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        return -1;
+    }
+
+    // Upload hll to device:
+    HLLMatrix *d_hll = uploadHLLToDevice(h_hll);
+    if (d_hll == nullptr)
+    {
+        perror("Hll_cuda_product failed: uploadHLLToDevice failed");
+        free_result_vector(d_result_vector);
+        free_vector(h_x);
+        cudaFree(d_x);
+        freeHLLDevice(d_hll);
+
+        return -1;
+    }
+
+    // Serial solution:
+    CUDA_EVENT_CREATE(start, stop)
+
+    CUDA_EVENT_START(start)
+    spmv_hll_serial<<<1, 1>>>(d_hll, d_x, d_result_vector);
+    cuda_error = cudaGetLastError();
+    CUDA_EVENT_STOP(stop)
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    if (cuda_error) {
+        printf("\033[31mhll_product - spmv_hll_serial kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    printf("CudaSerial: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (int_err != 0) {
+        printf("\033[31mhll_product - downloadResultVectorToHost spmv_hll_serial failed\033[0m\n");
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    int_err = checkResultVector(serial_result, h_result_vector);
+    if (int_err) {
+        printf("\033[31mhll_product - checkResultVector spmv_hll_serial failed\033[0m\n");
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    
+    freeResultVectorFromDevice(d_result_vector);
+
+
+    // Solution 1:
+    for (int i = 0; i < h_hll->M; i++) h_result_vector->val[i] = 0;
+    d_result_vector = uploadResultVectorToDevice(h_result_vector);
+    if (d_result_vector == nullptr) {
+        printf("\033[31mcsr_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+
+    dim3 grid(h_hll->numBlocks);
+    dim3 block(h_hll->hackSize);
+
+    CUDA_EVENT_START(start)
+    spmv_hll_parallel<<<grid, block>>>(d_hll, d_x, d_result_vector);
+    CUDA_EVENT_STOP(stop)
+    cuda_error = cudaGetLastError();
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    if (cuda_error) {
+        printf("\033[31mhll_product - hll_cudaProduct_sol1 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    printf("CudaSol1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (int_err != 0) {
+        printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    int_err = checkResultVector(serial_result, h_result_vector);
+    if (int_err) {
+        printf("\033[31hll_product - checkResultVector hll_cudaProduct_sol1 failed\033[0m\n");
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    freeResultVectorFromDevice(d_result_vector);
+
+
+    // Solution 1:
+    for (int i = 0; i < h_hll->M; i++) h_result_vector->val[i] = 0;
+    d_result_vector = uploadResultVectorToDevice(h_result_vector);
+    if (d_result_vector == nullptr) {
+        printf("\033[31mcsr_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+
+    CUDA_EVENT_START(start)
+    spmv_hll_coalesced<<<grid, block>>>(d_hll, d_x, d_result_vector);
+    CUDA_EVENT_STOP(stop)
+    cuda_error = cudaGetLastError();
+    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
+    if (cuda_error) {
+        printf("\033[31mhll_product - hll_cudaProduct_sol1 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    printf("CudaSol1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
+    if (int_err != 0) {
+        printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    int_err = checkResultVector(serial_result, h_result_vector);
+    if (int_err) {
+        printf("\033[31hll_product - checkResultVector hll_cudaProduct_sol1 failed\033[0m\n");
+
+        freeHLLDevice(d_hll);
+        free_vector(h_x);
+        cudaFree(d_x);
+        free_result_vector(h_result_vector);
+        freeResultVectorFromDevice(d_result_vector);
+        CUDA_EVENT_DESTROY(start, stop)
+        return -1;
+    }
+    freeResultVectorFromDevice(d_result_vector);
+
+
+
+    return 0;
 }
 
 
