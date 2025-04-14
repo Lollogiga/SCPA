@@ -5,6 +5,7 @@ add_library(utils STATIC
         flops.c
         mtxBalance.c
         mtxFree.c
+        performance.c
 )
 
 target_link_libraries(utils PRIVATE m)

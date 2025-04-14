@@ -7,10 +7,11 @@
 #include "./include/fileUtils.h"
 #include "./include/mtxFree.h"
 #include "./include/preprocessing.h"
+#include "./include/performance.h"
 #include "./include/cuda/computeCUDA.cuh"
 #include "./include/openmp/computeOpenMP.h"
 
-int computeMatrix(const char *matrixFile) {
+int computeMatrix(FILE* result_file, const char *matrixFile) {
     FILE *f;
 
     // Open Matrix Market file
@@ -131,6 +132,12 @@ int main(int argc, char *argv[]) {
 
     printf("Folder path: %s\n", folder);
 
+    FILE *result_file = csv_logger_init(NULL);
+    if (!result_file) {
+        printf("Error opening file result_file\n");
+        return -1;
+    }
+
 #ifndef TEST
     struct dirent *entry;
     while ((entry = readdir(dir))) {
@@ -148,32 +155,32 @@ int main(int argc, char *argv[]) {
         snprintf(filePath, strlen(folder) + strlen(entry->d_name) + 1, "%s%s", folder, entry->d_name);
         printf("FilePath: %s\n", filePath);
 
-        computeMatrix(filePath);
+        computeMatrix(result_file, filePath);
 
         free(filePath);
     }
 #else
     printf("TESTING ON SINGLE FILE\n\n");
 
-    computeMatrix("../matrixTest/ns_example.mtx");
-    computeMatrix("../matrixTest/pat_example.mtx");
-    computeMatrix("../matrixTest/sym_example.mtx");
+    computeMatrix(result_file, "../matrixTest/ns_example.mtx");
+    // computeMatrix(result_file, "../matrixTest/pat_example.mtx");
+    // computeMatrix(result_file, "../matrixTest/sym_example.mtx");
 
 
     // printf("\n ../matrixTest/mhda416.mtx\n");
-    computeMatrix("../matrixTest/mhda416.mtx");
+    // computeMatrix(result_file, "../matrixTest/mhda416.mtx");
 
     // printf("\n../matrixTest/cant.mtx\n");
-    computeMatrix("../matrixTest/cant.mtx");
-    computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
-    computeMatrix("../matrix/ML_Laplace.mtx");
+    // computeMatrix(result_file, "../matrixTest/cant.mtx");
+    // computeMatrix(result_file, "../matrixTest/Cube_Coup_dt0.mtx");
+    // computeMatrix(result_file, "../matrix/ML_Laplace.mtx");
 #endif
 
-
+    csv_logger_close(result_file);
     closedir(dir);
     free(folder);
 
-    printf("\nEND\n");
+    printf("\n\033[32;7mEND\033[0m\n");
 
     return 0;
 }
