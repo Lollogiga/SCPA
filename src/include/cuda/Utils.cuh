@@ -28,6 +28,7 @@ elapsedTime /= 1000;
 
 CSRMatrix* uploadCSRToDevice(const CSRMatrix *h_csr);
 HLLMatrix* uploadHLLToDevice(const HLLMatrix* h_hll);
+HLLMatrixAligned* uploadHLLAlignedToDevice(const HLLMatrixAligned* h_hll);
 
 ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec);
 
@@ -35,6 +36,7 @@ int downloadResultVectorToHost(ResultVector *hostResultVector, const ResultVecto
 
 int freeCSRDevice(CSRMatrix *d_csr_ptr);
 void freeHLLDevice(HLLMatrix* d_hll);
+void freeHLLAlignedToDevice(HLLMatrixAligned* d_hll);
 
 int freeResultVectorFromDevice(ResultVector *d_result_vector);
 

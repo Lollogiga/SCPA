@@ -7,5 +7,8 @@
 
 #include "../mtxStructs.h"
 
-int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial);
+__global__ void spmv_hll_parallel(HLLMatrix *hll, const MatVal *vector, ResultVector *result);
+__global__ void spmv_hll_coalesced(HLLMatrix *hll, const MatVal *vector, ResultVector *result);
+__global__ void spmv_hllAligned_parallel(HLLMatrixAligned *hll, const MatVal *vector, ResultVector *result);
+__global__ void spmv_hllAligned_coalesced(HLLMatrixAligned* hll, const MatVal* __restrict__ vector, ResultVector* __restrict__ result);
 #endif //CUDAHLL_CUH

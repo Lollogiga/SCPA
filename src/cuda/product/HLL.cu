@@ -19,17 +19,17 @@ __global__ void spmv_hll_parallel(HLLMatrix *hll, const MatVal *vector, ResultVe
 
     if(block_id >= hll->numBlocks) return;
 
-    ELLPACKMatrix *blk = hll->blocks[block_id];
+    ELLPACKMatrix *block = hll->blocks[block_id];
 
-    if(thread_id >= blk->M) return;
+    if(thread_id >= block->M) return;
 
     MatVal sum = 0.0;
 #pragma unroll
-    for(MatT j = 0; j < blk->MAXNZ; j++) {
-        const MatT col = blk->JA[thread_id][j];
-        sum += blk->AS[thread_id][j] * vector[col];
+    for(MatT j = 0; j < block->MAXNZ; j++) {
+        const MatT col = block->JA[thread_id][j];
+        sum += block->AS[thread_id][j] * vector[col];
     }
-    result->val[blk->startRow + thread_id] = sum;
+    result->val[block->startRow + thread_id] = sum;
 }
 
 __global__ void spmv_hll_coalesced(HLLMatrix *hll, const MatVal *vector, ResultVector *result) {
@@ -38,280 +38,63 @@ __global__ void spmv_hll_coalesced(HLLMatrix *hll, const MatVal *vector, ResultV
 
     if(block_id >= hll->numBlocks) return;
 
-    ELLPACKMatrix *blk = hll->blocks[block_id];
+    ELLPACKMatrix *block = hll->blocks[block_id];
 
-    if(thread_id >= blk->M) return;
+    if(thread_id >= block->M) return;
 
     MatVal sum = 0.0;
 #pragma unroll
-    for(MatT j = 0; j < blk->MAXNZ; j++) {
-        const MatT col = blk->JA[thread_id][j];
-        sum += blk->AS[thread_id][j] * vector[col];
+    for(MatT j = 0; j < block->MAXNZ; j++) {
+        const MatT col = block->JA[thread_id][j];
+        sum += block->AS[thread_id][j] * vector[col];
     }
 
     // Coalescenza: Accesso contiguo alla memoria
-    result->val[blk->startRow + thread_id] = sum;
+    result->val[block->startRow + thread_id] = sum;
 }
 
+// Versione base parallela
+__global__ void spmv_hllAligned_parallel(HLLMatrixAligned *hll, const MatVal *vector, ResultVector *result) {
+    const int block_id = blockIdx.x;
+    const int thread_id = threadIdx.x;
 
-int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result)
-{
-    cudaError_t cuda_error;
-    int int_err;
+    if(block_id >= hll->numBlocks) return;
 
-    float elapsedTime;
+    ELLPACKMatrixAligned* block = hll->blocks[block_id];
 
-    if (!h_hll || !serial_result)
-    {
-       perror("Hll_cuda_product failed: Input not initialized");
-        return -1;
+    if(thread_id >= block->M) return;
+
+    MatVal sum = 0.0;
+#pragma unroll
+    for(MatT j = 0; j < block->MAXNZ; j++) {
+        const MatT col = block->JA[thread_id * block->MAXNZ + j];
+        sum += block->AS[thread_id * block->MAXNZ + j] * vector[col];
     }
+    result->val[block->startRow + thread_id] = sum;
+}
 
-    //Create vector:
-    MatVal *h_x = create_vector(h_hll->N);
-    if (h_x == nullptr)
-    {
-        perror("Hll_cuda_product failed: create_vector failed");
-        return -1;
+// Versione con coalescenza avanzata
+__global__ void spmv_hllAligned_coalesced(HLLMatrixAligned* hll, const MatVal* __restrict__ vector, ResultVector* __restrict__ result) {
+    const int global_id = blockIdx.x * blockDim.x + threadIdx.x;
+    const int total_threads = gridDim.x * blockDim.x;
+
+    for(MatT blk = 0; blk < hll->numBlocks; blk++) {
+        ELLPACKMatrixAligned* block = hll->blocks[blk];
+        const MatT rows_per_thread = (block->M + total_threads - 1) / total_threads;
+
+        for(MatT r = 0; r < rows_per_thread; r++) {
+            const MatT row = global_id * rows_per_thread + r;
+            if(row >= block->M) break;
+
+            MatVal sum = 0.0;
+#pragma unroll
+            for(MatT j = 0; j < block->MAXNZ; j++) {
+                const MatT idx = row * block->MAXNZ + j;
+                sum += block->AS[idx] * vector[block->JA[idx]];
+            }
+            result->val[block->startRow + row] = sum;
+        }
     }
-
-    //Upload vector on device:
-    MatVal* d_x;
-    cuda_error = cudaMallocManaged(&d_x, h_hll->N * sizeof(MatVal));
-    if (cuda_error != cudaSuccess) {
-        printf("\033[31mhll_product - cudaMallocManaged h_hll->N failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        free_vector(h_x);
-        return -1;
-    }
-    cuda_error = cudaMemcpy(d_x, h_x, h_hll->N * sizeof(MatVal), cudaMemcpyHostToDevice);
-    if (cuda_error != cudaSuccess) {
-        printf("\033[31mhll_product - cudaMemcpy h_x failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        free_vector(h_x);
-        cudaFree(d_x);
-        return -1;
-    }
-    cuda_error = cudaMemAdvise(d_x, h_hll->N * sizeof(MatVal), cudaMemAdviseSetReadMostly, 0);
-    if (cuda_error != cudaSuccess) {
-        printf("\033[31mhll_product - cudaMemAdvise SetReadMostly failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        free_vector(h_x);
-        cudaFree(d_x);
-        return -1;
-    }
-    cuda_error = cudaMemAdvise(d_x, h_hll->N * sizeof(MatVal), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-    if (cuda_error != cudaSuccess) {
-        printf("\033[31mhll_product - cudaMemAdvise SetPreferredLocation failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        free_vector(h_x);
-        cudaFree(d_x);
-        return -1;
-    }
-
-    //Create result_vector:
-    ResultVector *h_result_vector = create_result_vector(h_hll->M);
-    if (h_result_vector == nullptr)
-    {
-        perror("Hll_cuda_product failed: create_result_vector failed");
-        return -1;
-    }
-
-    // Upload result_vector on device
-    ResultVector *d_result_vector = uploadResultVectorToDevice(h_result_vector);
-    if (d_result_vector == nullptr) {
-        printf("\033[31mhll_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
-
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        return -1;
-    }
-
-    // Upload hll to device:
-    HLLMatrix *d_hll = uploadHLLToDevice(h_hll);
-    if (d_hll == nullptr)
-    {
-        perror("Hll_cuda_product failed: uploadHLLToDevice failed");
-        free_result_vector(d_result_vector);
-        free_vector(h_x);
-        cudaFree(d_x);
-        freeHLLDevice(d_hll);
-
-        return -1;
-    }
-
-    // Serial solution:
-    CUDA_EVENT_CREATE(start, stop)
-
-    CUDA_EVENT_START(start)
-    spmv_hll_serial<<<1, 1>>>(d_hll, d_x, d_result_vector);
-    cuda_error = cudaGetLastError();
-    CUDA_EVENT_STOP(stop)
-    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    if (cuda_error) {
-        printf("\033[31mhll_product - spmv_hll_serial kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    printf("CudaSerial: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
-    int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
-    if (int_err != 0) {
-        printf("\033[31mhll_product - downloadResultVectorToHost spmv_hll_serial failed\033[0m\n");
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    int_err = checkResultVector(serial_result, h_result_vector);
-    if (int_err) {
-        printf("\033[31mhll_product - checkResultVector spmv_hll_serial failed\033[0m\n");
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    
-    freeResultVectorFromDevice(d_result_vector);
-
-
-    // Solution 1:
-    for (int i = 0; i < h_hll->M; i++) h_result_vector->val[i] = 0;
-    d_result_vector = uploadResultVectorToDevice(h_result_vector);
-    if (d_result_vector == nullptr) {
-        printf("\033[31mcsr_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-
-    dim3 grid(h_hll->numBlocks);
-    dim3 block(h_hll->hackSize);
-
-    CUDA_EVENT_START(start)
-    spmv_hll_parallel<<<grid, block>>>(d_hll, d_x, d_result_vector);
-    CUDA_EVENT_STOP(stop)
-    cuda_error = cudaGetLastError();
-    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    if (cuda_error) {
-        printf("\033[31mhll_product - hll_cudaProduct_sol1 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    printf("CudaSol1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
-    int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
-    if (int_err != 0) {
-        printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    int_err = checkResultVector(serial_result, h_result_vector);
-    if (int_err) {
-        printf("\033[31hll_product - checkResultVector hll_cudaProduct_sol1 failed\033[0m\n");
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    freeResultVectorFromDevice(d_result_vector);
-
-
-    // Solution 1:
-    for (int i = 0; i < h_hll->M; i++) h_result_vector->val[i] = 0;
-    d_result_vector = uploadResultVectorToDevice(h_result_vector);
-    if (d_result_vector == nullptr) {
-        printf("\033[31mcsr_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-
-    CUDA_EVENT_START(start)
-    spmv_hll_coalesced<<<grid, block>>>(d_hll, d_x, d_result_vector);
-    CUDA_EVENT_STOP(stop)
-    cuda_error = cudaGetLastError();
-    CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    if (cuda_error) {
-        printf("\033[31mhll_product - hll_cudaProduct_sol1 kernel failed: %s\033[0m\n", cudaGetErrorString(cuda_error));
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    printf("CudaSol1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
-    int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
-    if (int_err != 0) {
-        printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    int_err = checkResultVector(serial_result, h_result_vector);
-    if (int_err) {
-        printf("\033[31hll_product - checkResultVector hll_cudaProduct_sol1 failed\033[0m\n");
-
-        freeHLLDevice(d_hll);
-        free_vector(h_x);
-        cudaFree(d_x);
-        free_result_vector(h_result_vector);
-        freeResultVectorFromDevice(d_result_vector);
-        CUDA_EVENT_DESTROY(start, stop)
-        return -1;
-    }
-    freeResultVectorFromDevice(d_result_vector);
-
-
-
-    return 0;
 }
 
 

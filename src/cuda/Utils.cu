@@ -189,7 +189,70 @@ void freeHLLDevice(HLLMatrix* d_hll) {
     cudaFree(d_hll);
 }
 
+// Upload della struttura su device
+HLLMatrixAligned* uploadHLLAlignedToDevice(const HLLMatrixAligned* h_hll) {
+    HLLMatrixAligned* d_hll;
+    cudaMalloc(&d_hll, sizeof(HLLMatrixAligned));
+    cudaMemcpy(d_hll, h_hll, sizeof(HLLMatrixAligned), cudaMemcpyHostToDevice);
 
+    // Alloca array di puntatori ai blocchi
+    ELLPACKMatrixAligned** d_blocks;
+    cudaMalloc(&d_blocks, h_hll->numBlocks * sizeof(ELLPACKMatrixAligned*));
+
+    for(MatT i = 0; i < h_hll->numBlocks; i++) {
+        ELLPACKMatrixAligned* h_block = h_hll->blocks[i];
+        ELLPACKMatrixAligned* d_block;
+
+        cudaMalloc(&d_block, sizeof(ELLPACKMatrixAligned));
+        cudaMemcpy(d_block, h_block, sizeof(ELLPACKMatrixAligned), cudaMemcpyHostToDevice);
+
+        // Alloca e copia JA
+        MatT* d_JA;
+        size_t ja_size = h_block->M * h_block->MAXNZ * sizeof(MatT);
+        cudaMalloc(&d_JA, ja_size);
+        cudaMemcpy(d_JA, h_block->JA, ja_size, cudaMemcpyHostToDevice);
+        cudaMemcpy(&d_block->JA, &d_JA, sizeof(MatT*), cudaMemcpyHostToDevice);
+
+        // Alloca e copia AS
+        MatVal* d_AS;
+        size_t as_size = h_block->M * h_block->MAXNZ * sizeof(MatVal);
+        cudaMalloc(&d_AS, as_size);
+        cudaMemcpy(d_AS, h_block->AS, as_size, cudaMemcpyHostToDevice);
+        cudaMemcpy(&d_block->AS, &d_AS, sizeof(MatVal*), cudaMemcpyHostToDevice);
+
+        cudaMemcpy(&d_blocks[i], &d_block, sizeof(ELLPACKMatrixAligned*), cudaMemcpyHostToDevice);
+    }
+
+    cudaMemcpy(&d_hll->blocks, &d_blocks, sizeof(ELLPACKMatrixAligned**), cudaMemcpyHostToDevice);
+    return d_hll;
+}
+
+// Deallocazione della struttura
+void freeHLLAlignedToDevice(HLLMatrixAligned* d_hll) {
+    ELLPACKMatrixAligned** d_blocks;
+    cudaMemcpy(&d_blocks, &d_hll->blocks, sizeof(ELLPACKMatrixAligned**), cudaMemcpyDeviceToHost);
+
+    MatT numBlocks;
+    cudaMemcpy(&numBlocks, &d_hll->numBlocks, sizeof(MatT), cudaMemcpyDeviceToHost);
+
+    for(MatT i = 0; i < numBlocks; i++) {
+        ELLPACKMatrixAligned* d_block;
+        cudaMemcpy(&d_block, &d_blocks[i], sizeof(ELLPACKMatrixAligned*), cudaMemcpyDeviceToHost);
+
+        MatT* d_JA;
+        cudaMemcpy(&d_JA, &d_block->JA, sizeof(MatT*), cudaMemcpyDeviceToHost);
+        cudaFree(d_JA);
+
+        MatVal* d_AS;
+        cudaMemcpy(&d_AS, &d_block->AS, sizeof(MatVal*), cudaMemcpyDeviceToHost);
+        cudaFree(d_AS);
+
+        cudaFree(d_block);
+    }
+
+    cudaFree(d_blocks);
+    cudaFree(d_hll);
+}
 
 
 ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec) {
@@ -230,7 +293,6 @@ ResultVector* uploadResultVectorToDevice(const ResultVector *h_vec) {
 
     return d_vec_ptr;
 }
-
 
 
 int freeResultVectorFromDevice(ResultVector *d_result_vector) {
