@@ -11,14 +11,17 @@
 #include "./include/cuda/computeCUDA.cuh"
 #include "./include/openmp/computeOpenMP.h"
 
-int computeMatrix(FILE* result_file, const char *matrixFile) {
+int computeMatrix(const char *matrixFile) {
     FILE *f;
+    PerformanceResult performance = {0};
 
     // Open Matrix Market file
     if ((f = fopen(matrixFile, "r")) == NULL) {
         perror("Error opening file\n");
         return -1;
     }
+
+    strcpy(performance.matrix_name, matrixFile);
 
     // Read file and save matrix into MatrixMarket format
     RawMatrix *rawMatrix = read_matrix(f);
@@ -29,6 +32,8 @@ int computeMatrix(FILE* result_file, const char *matrixFile) {
 
         return -1;
     }
+
+    performance.NZ = rawMatrix->NZ;
 
     // Close FILE pointer
     fclose(f);
@@ -65,13 +70,16 @@ int computeMatrix(FILE* result_file, const char *matrixFile) {
         return -1;
     }
 
+    printf("\n-------------- COMPUTING OpenMP --------------\n");
+
     int num_threads = 40;
     printf("\n\033[32;7m# of threads:\033[0;32m %d\033[0m\n", num_threads);
 
-    printf("\n-------------- COMPUTING OpenMP --------------\n");
+    strcpy(performance.implementation, "OpenMP");
+    performance.threads = num_threads;
 
     // Compute OpenMP calculus
-    if (computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
+    if (computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads, &performance)) {
         perror("Error computeOpenMP\n");
         free_CSRMatrix(csrMatrix);
         free_HLLMatrix(hllMatrix);
@@ -81,6 +89,10 @@ int computeMatrix(FILE* result_file, const char *matrixFile) {
     }
 
     printf("\n-------------- COMPUTING CUDA --------------\n");
+
+    strcpy(performance.implementation, "OpenMP");
+    performance.block_size = 32;
+    performance.blocks_per_grid = 192;
 
     if (computeCUDA(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
         free_CSRMatrix(csrMatrix);
@@ -162,18 +174,18 @@ int main(int argc, char *argv[]) {
 #else
     printf("TESTING ON SINGLE FILE\n\n");
 
-    computeMatrix(result_file, "../matrixTest/ns_example.mtx");
-    // computeMatrix(result_file, "../matrixTest/pat_example.mtx");
-    // computeMatrix(result_file, "../matrixTest/sym_example.mtx");
+    // computeMatrix("../matrixTest/ns_example.mtx");
+    // computeMatrix("../matrixTest/pat_example.mtx");
+    // computeMatrix("../matrixTest/sym_example.mtx");
 
 
     // printf("\n ../matrixTest/mhda416.mtx\n");
-    // computeMatrix(result_file, "../matrixTest/mhda416.mtx");
+    // computeMatrix("../matrixTest/mhda416.mtx");
 
     // printf("\n../matrixTest/cant.mtx\n");
-    // computeMatrix(result_file, "../matrixTest/cant.mtx");
-    // computeMatrix(result_file, "../matrixTest/Cube_Coup_dt0.mtx");
-    // computeMatrix(result_file, "../matrix/ML_Laplace.mtx");
+    computeMatrix("../matrixTest/cant.mtx");
+    // computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
+    // computeMatrix("../matrix/ML_Laplace.mtx");
 #endif
 
     csv_logger_close(result_file);
