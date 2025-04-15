@@ -767,8 +767,8 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
     CUDA_EVENT_START(start)
     int numSMs;
     cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
-    dim3 grid(4 * numSMs);  // Occupazione ottimale della GPU
-    dim3 block(128);
+    dim3 grid(h_hll->numBlocks);  // Un blocco CUDA per ogni blocco HLL
+    dim3 block(256);            // 256 thread per blocco
     spmv_hllAligned_coalesced<<<grid, block>>>(d_hll, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     cuda_error = cudaGetLastError();
@@ -831,13 +831,15 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
     printf("\033[1;31m---- csr ----:\033[0m\n");
     csr_product(csr, serial);
 
+    // Inizio HLL_ALIGNED
+    printf("\033[1;34m---- hll_aligned ----:\033[0m\n");
+    hllAligned_CUDA_product(hllAligned, serial);
+
     // Inizio HLL
     printf("\033[1;32m---- hll ----:\033[0m\n");
     hll_CUDA_product(hll, serial);
 
-    // Inizio HLL_ALIGNED
-    printf("\033[1;34m---- hll_aligned ----:\033[0m\n");
-    hllAligned_CUDA_product(hllAligned, serial);
+
 
     int sharedMemPerBlock;
     cudaDeviceGetAttribute(&sharedMemPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);

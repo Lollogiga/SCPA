@@ -73,28 +73,29 @@ __global__ void spmv_hllAligned_parallel(HLLMatrixAligned *hll, const MatVal *ve
     result->val[block->startRow + thread_id] = sum;
 }
 
-// Versione con coalescenza avanzata
 __global__ void spmv_hllAligned_coalesced(HLLMatrixAligned* hll, const MatVal* __restrict__ vector, ResultVector* __restrict__ result) {
-    const int global_id = blockIdx.x * blockDim.x + threadIdx.x;
-    const int total_threads = gridDim.x * blockDim.x;
+    const int block_id = blockIdx.x;
+    const int thread_id = threadIdx.x;
+    const int total_threads = blockDim.x;
 
-    for(MatT blk = 0; blk < hll->numBlocks; blk++) {
-        ELLPACKMatrixAligned* block = hll->blocks[blk];
-        const MatT rows_per_thread = (block->M + total_threads - 1) / total_threads;
+    if(block_id >= hll->numBlocks) return;
 
-        for(MatT r = 0; r < rows_per_thread; r++) {
-            const MatT row = global_id * rows_per_thread + r;
-            if(row >= block->M) break;
+    ELLPACKMatrixAligned* block = hll->blocks[block_id];
+    const MatT rows_per_thread = (block->M + total_threads - 1) / total_threads;
 
-            MatVal sum = 0.0;
+    for(MatT r = 0; r < rows_per_thread; r++) {
+        const MatT row = thread_id * rows_per_thread + r;
+        if(row >= block->M) break;
+
+        MatVal sum = 0.0;
 #pragma unroll
-            for(MatT j = 0; j < block->MAXNZ; j++) {
-                const MatT idx = row * block->MAXNZ + j;
-                sum += block->AS[idx] * vector[block->JA[idx]];
-            }
-            result->val[block->startRow + row] = sum;
+        for(MatT j = 0; j < block->MAXNZ; j++) {
+            const MatT idx = row * block->MAXNZ + j;
+            sum += block->AS[idx] * vector[block->JA[idx]];
         }
+        result->val[block->startRow + row] = sum;
     }
 }
+
 
 
