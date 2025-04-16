@@ -88,6 +88,8 @@ int computeMatrix(const char *matrixFile) {
         return -1;
     }
 
+    performance.threads = 0;
+
     printf("\n-------------- COMPUTING CUDA --------------\n");
 
     int blockSize = 192;
