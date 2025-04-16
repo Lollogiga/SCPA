@@ -90,11 +90,14 @@ int computeMatrix(const char *matrixFile) {
 
     printf("\n-------------- COMPUTING CUDA --------------\n");
 
-    strcpy(performance.implementation, "OpenMP");
-    performance.block_size = 32;
-    performance.blocks_per_grid = 192;
+    int blockSize = 192;
+    int warpSize = 32;
 
-    if (computeCUDA(csrMatrix, hllMatrix, hllMatrixAligned, num_threads)) {
+    strcpy(performance.implementation, "CUDA");
+    performance.block_size = 192;
+    performance.warp_size = 32;
+
+    if (computeCUDA(csrMatrix, hllMatrix, hllMatrixAligned, blockSize, warpSize, &performance)) {
         free_CSRMatrix(csrMatrix);
         free_HLLMatrix(hllMatrix);
         free_HLLMatrixAligned(hllMatrixAligned);

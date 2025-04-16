@@ -32,26 +32,49 @@ typedef struct {
     double error_L2;        // L2 error (Euclidean norm) indicating the overall error magnitude
 } PerformanceResult;
 
-FILE* csv_logger_init(const char* filename);
-void csv_logger_write(const PerformanceResult* result);
-void csv_logger_close();
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+    FILE* csv_logger_init(const char* filename);
+    void csv_logger_write(const PerformanceResult* result);
+    void csv_logger_close();
+
+#ifdef __cplusplus
+}
+#endif
 
 // OpenMP defines
-#define INIT_BENCHMARK(start, end, cumulative)  \
-    double start = 0, end = 0;                  \
-    double cumulative = 0;                      \
+#define INIT_BENCHMARK_OPENMP(start, end, cumulative) \
+    double start = 0, end = 0;                 \
+    double cumulative = 0;                     \
 
-#define BEGIN_BENCHMARK(perf_ptr, start, func_name_str)  \
-    strcpy((perf_ptr)->curr_func, func_name_str);        \
-    cumulative = 0;                                      \
-    for (int i = 0; i < MAX_REPETITIONS; i++) {          \
-        start = omp_get_wtime();
+#define BEGIN_BENCHMARK_OPENMP(perf_ptr, func_name_str)                 \
+    strcpy((perf_ptr)->curr_func, func_name_str);                       \
+    cumulative = 0;                                                     \
+    for (int iBenchOMP = 0; iBenchOMP < MAX_REPETITIONS; iBenchOMP++) {
 
-#define END_BENCHMARK(perf_ptr, end, cumulative)                              \
-    end = omp_get_wtime();                                                    \
+#define END_BENCHMARK_OPENMP(perf_ptr, start, end, cumulative)                \
     cumulative += end - start;                                                \
-    (perf_ptr)->avg_time_ms = cumulative / (i + 1);                           \
-    (perf_ptr)->repetitions = i + 1;                                          \
+    (perf_ptr)->avg_time_ms = cumulative / (iBenchOMP + 1);                   \
+    (perf_ptr)->repetitions = iBenchOMP + 1;                                  \
+    (perf_ptr)->gflops = computeFlops(perf_ptr->NZ, (perf_ptr)->avg_time_ms); \
+    csv_logger_write(perf_ptr);                                               \
+}
+
+// CUDA defines
+#define INIT_BENCHMARK_CUDA(cumulative) \
+    double cumulative = 0;
+
+#define BEGIN_BENCHMARK_CUDA(perf_ptr, func_name_str)                      \
+    strcpy((perf_ptr)->curr_func, func_name_str);                          \
+    cumulative = 0;                                                        \
+    for (int iBenchCUDA = 0; iBenchCUDA < MAX_REPETITIONS; iBenchCUDA++) {
+
+#define END_BENCHMARK_CUDA(perf_ptr, elapsed)                                 \
+    cumulative += elapsed;                                                    \
+    (perf_ptr)->avg_time_ms = cumulative / (iBenchCUDA + 1);                   \
+    (perf_ptr)->repetitions = iBenchCUDA + 1;                                  \
     (perf_ptr)->gflops = computeFlops(perf_ptr->NZ, (perf_ptr)->avg_time_ms); \
     csv_logger_write(perf_ptr);                                               \
 }

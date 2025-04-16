@@ -11,6 +11,7 @@
 #include "../include/checkResultVector.h"
 #include "../include/mtxStructs.h"
 #include "../include/flops.h"
+#include "../include/performance.h"
 
 /*
  * --- NOTE SULLA SCHEDA VIDEO SUL SERVER DI DIPARTIMENTO ---
@@ -23,7 +24,7 @@
  * Memoria condivisa per blocco: 49152 bytes
  */
 
-int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
+int csr_product(CSRMatrix *h_csr, ResultVector *serial, int blockSize, int warpSize, PerformanceResult *performance) {
     cudaError_t cuda_error;
     int int_err;
     
@@ -35,9 +36,11 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         return -1;
     }
 
-    int threadsPerBlock = BLOCK_SIZE;
-    int warpsPerBlock = threadsPerBlock / WARP_SIZE;
+    int threadsPerBlock = blockSize;
+    int warpsPerBlock = threadsPerBlock / warpSize;
     int blocksPerGrid = (h_csr->M + warpsPerBlock - 1) / warpsPerBlock;
+
+    performance->blocks_per_grid = blocksPerGrid;
 
     MatVal *h_x = create_vector(h_csr->N);
     if (h_x == nullptr) {
@@ -106,6 +109,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
 
 
     CUDA_EVENT_CREATE(start, stop)
+    INIT_BENCHMARK_CUDA(cumulative)
 
     // SOL SERIAL
     CUDA_EVENT_START(start)
@@ -152,6 +156,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     freeResultVectorFromDevice(d_result_vector);
 
     // SOL 1
+    BEGIN_BENCHMARK_CUDA(performance, "csr_cudaProduct_sol1")
     for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
     d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
@@ -165,7 +170,6 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-
     CUDA_EVENT_START(start)
     csr_cudaProduct_sol1<<<blocksPerGrid, threadsPerBlock>>>(d_csr, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
@@ -182,7 +186,6 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("csr_cuda1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
@@ -208,8 +211,11 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         return -1;
     }
     freeResultVectorFromDevice(d_result_vector);
+    END_BENCHMARK_CUDA(performance, elapsedTime)
+    printf("csr_cuda1: Flops: %f\n", computeFlops(h_csr->NZ, performance->avg_time_ms));
 
     // SOL 2
+    BEGIN_BENCHMARK_CUDA(performance, "csr_cudaProduct_sol2")
     for (int i = 0; i < h_csr->M; i++) h_result_vector->val[i] = 0;
     d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
@@ -242,7 +248,6 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         return -1;
     }
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    printf("csr_cuda2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol2 failed\033[0m\n");
@@ -281,6 +286,8 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         // return -1;
     }
     freeResultVectorFromDevice(d_result_vector);
+    END_BENCHMARK_CUDA(performance, elapsedTime)
+    printf("csr_cuda2: Flops: %f\n", computeFlops(h_csr->NZ, performance->avg_time_ms));
 
     freeCSRDevice(d_csr);
     cudaFree(d_x);
@@ -817,40 +824,29 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
 
 }
 
-extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hllAligned, int num_threads) {
+extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hllAligned, int blockSize, int warpSize, PerformanceResult *performance) {
     MatVal *vector = create_vector(csr->N);
     if (vector == nullptr) return -1;
 
     ResultVector *serial = csr_serialProduct(csr, vector);
 
-    // Inizio CSR
+    // CSR format
+    strcpy(performance->format, "CSR");
+
     printf("\033[1;31m---- csr ----:\033[0m\n");
-    csr_product(csr, serial);
+    csr_product(csr, serial, blockSize, warpSize, performance);
 
-    // Inizio HLL_ALIGNED
-    printf("\033[1;34m---- hll_aligned ----:\033[0m\n");
-    hllAligned_CUDA_product(hllAligned, serial);
+    // HLL format
+    strcpy(performance->format, "HLL");
 
-    // Inizio HLL
     printf("\033[1;32m---- hll ----:\033[0m\n");
     hll_CUDA_product(hll, serial);
 
+    // HLLAlign format
+    strcpy(performance->format, "HLLAlign");
 
-
-    int sharedMemPerBlock;
-    cudaDeviceGetAttribute(&sharedMemPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);
-
-
-    // cudaDeviceProp prop;
-    // cudaGetDeviceProperties(&prop, 0);
-
-    // printf("Nome GPU: %s\n", prop.name);
-    // printf("Max threads per block: %d\n", prop.maxThreadsPerBlock);
-    // printf("Warp size: %d\n", prop.warpSize);
-    // printf("Max threads per multiprocessore: %d\n", prop.maxThreadsPerMultiProcessor);
-    // printf("Numero di multiprocessori: %d\n", prop.multiProcessorCount);
-    // printf("Max blocchi per griglia: %d\n", prop.maxGridSize[0]);
-    // printf("Memoria condivisa per blocco: %zu bytes\n", prop.sharedMemPerBlock);
+    printf("\033[1;34m---- hll_aligned ----:\033[0m\n");
+    hllAligned_CUDA_product(hllAligned, serial);
 
     return 0;
 }

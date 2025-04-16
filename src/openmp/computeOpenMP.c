@@ -36,11 +36,10 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     const MatT NZ = csrMatrix->NZ;
 
     ResultVector *res = NULL;
-    INIT_BENCHMARK(start, end, cumulative);
+    INIT_BENCHMARK_OPENMP(start, end, cumulative);
 
     // Csr solution 1
-    BEGIN_BENCHMARK(performance, start, "csr_openmpProduct_sol1")
-    start = omp_get_wtime();
+    BEGIN_BENCHMARK_OPENMP(performance, "csr_openmpProduct_sol1")
     res = csr_openmpProduct_sol1(csrMatrix, vector, num_threads);
     if (res == NULL) {
         perror("Error csr_openmpProduct_sol1\n");
@@ -53,11 +52,11 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
         return -1;
     }
     free_ResultVector(res);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("csr_openmp1: GFLOPS = %lf\n", computeFlops(NZ, performance->avg_time_ms));
 
     // Csr solution 2
-    BEGIN_BENCHMARK(performance, start, "csr_openmpProduct_sol2")
+    BEGIN_BENCHMARK_OPENMP(performance, "csr_openmpProduct_sol2")
     start = omp_get_wtime();
     res = csr_openmpProduct_sol2(csrMatrix, vector, num_threads);
     if (res == NULL) {
@@ -71,12 +70,12 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
         return -1;
     }
     free_ResultVector(res);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("csr_openmp2: GFLOPS = %lf\n", computeFlops(NZ, performance->avg_time_ms));
 
 
     // Csr solution 3
-    BEGIN_BENCHMARK(performance, start, "csr_openmpProduct_sol3")
+    BEGIN_BENCHMARK_OPENMP(performance, "csr_openmpProduct_sol3")
     start = omp_get_wtime();
     res = csr_openmpProduct_sol3(csrMatrix, vector, num_threads);
     if (res == NULL) {
@@ -90,12 +89,12 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
         return -1;
     }
     free_ResultVector(res);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("csr_openmp3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
 
     // Csr solution 4
-    BEGIN_BENCHMARK(performance, start, "csr_openmpProduct_sol4")
+    BEGIN_BENCHMARK_OPENMP(performance, "csr_openmpProduct_sol4")
     start = omp_get_wtime();
     res = csr_openmpProduct_sol4(csrMatrix, vector, num_threads);
     if (res == NULL) {
@@ -109,13 +108,13 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
         return -1;
     }
     free_ResultVector(res);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("csr_openmp4: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
 
     // Csr solution 5
     ThreadDataRange *tdr = matrixBalanceCSR(csrMatrix, num_threads);
-    BEGIN_BENCHMARK(performance, start, "csr_openmpProduct_sol5")
+    BEGIN_BENCHMARK_OPENMP(performance, "csr_openmpProduct_sol5")
     start = omp_get_wtime();
     res = csr_openmpProduct_sol5(csrMatrix, vector, num_threads, tdr);
     if (res == NULL) {
@@ -129,7 +128,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
         return -1;
     }
     free_ResultVector(res);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     free(tdr);
     printf("csr_openmp5: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
@@ -159,10 +158,10 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
     const MatT NZ = hllMatrix->NZ;
 
     ResultVector *res = NULL;
-    INIT_BENCHMARK(start, end, cumulative);
+    INIT_BENCHMARK_OPENMP(start, end, cumulative);
 
     // OpenMP solution 1
-    BEGIN_BENCHMARK(performance, start, "hll_openmpProduct_sol1")
+    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol1")
     start = omp_get_wtime();
     res = hll_openmpProduct_sol1(hllMatrix, vector, num_threads);
     if (res == NULL) {
@@ -176,11 +175,11 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
         return -1;
     }
     free_ResultVector(res);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("hll_openmp1: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
     // OpenMP solution 2
-    BEGIN_BENCHMARK(performance, start, "hll_openmpProduct_sol2")
+    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol2")
     start = omp_get_wtime();
     res = hll_openmpProduct_sol2(hllMatrix, vector, num_threads);
     if (res == NULL) {
@@ -194,12 +193,12 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
         return -1;
     }
     free_ResultVector(res);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("hll_openmp2: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
     // OpenMP solution 3: added some preprocessing
     ThreadDataRange *tdr = matrixBalanceHLL(hllMatrix, num_threads);
-    BEGIN_BENCHMARK(performance, start, "hll_openmpProduct_sol3")
+    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
     start = omp_get_wtime();
     res = hll_openmpProduct_sol3(hllMatrix, vector, num_threads, tdr);
     if (res == NULL) {
@@ -213,7 +212,7 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
         return -1;
     }
     free_ResultVector(res);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     free(tdr);
     printf("hll_openmp3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
@@ -243,10 +242,10 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
     const MatT NZ = hllMatrix->NZ;
 
     ResultVector *hll_product = NULL;
-    INIT_BENCHMARK(start, end, cumulative);
+    INIT_BENCHMARK_OPENMP(start, end, cumulative);
 
     //OpemMP solution:
-    BEGIN_BENCHMARK(performance, start, "hll_openmpProduct_sol3")
+    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
     start = omp_get_wtime();
     hll_product = hllAligned_openmpProduct(hllMatrix, vector, num_threads);
     if (hll_product == NULL) {
@@ -260,11 +259,11 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
         return -1;
     }
     free_ResultVector(hll_product);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("hllAligned_openmp1: GFLOPS: %f\n", computeFlops(NZ, end - start));
 
     //OpemMP solution 2:
-    BEGIN_BENCHMARK(performance, start, "hll_openmpProduct_sol3")
+    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
     start = omp_get_wtime();
     hll_product = hllAligned_openmpProduct_sol2(hllMatrix, vector, num_threads);
     if (hll_product == NULL) {
@@ -278,12 +277,12 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
         return -1;
     }
     free_ResultVector(hll_product);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("hllAligned_openmp2: GFLOPS: %f\n", computeFlops(NZ, end - start));
 
     // OpenMP solution 3: added some preprocessing
     ThreadDataRange *tdr = matrixBalanceHLL_sol2(hllMatrix, num_threads);
-    BEGIN_BENCHMARK(performance, start, "hll_openmpProduct_sol3")
+    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
     start = omp_get_wtime();
     hll_product = hllAligned_openmpProduct_sol3(hllMatrix, vector, num_threads, tdr);
     if (hll_product == NULL) {
@@ -297,7 +296,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
         return -1;
     }
     free_ResultVector(hll_product);
-    END_BENCHMARK(performance, end, cumulative)
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     free(tdr);
     printf("hllAligned_openmp3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 

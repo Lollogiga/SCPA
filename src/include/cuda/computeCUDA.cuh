@@ -2,12 +2,13 @@
 #define COMPUTECUDA_CUH
 
 #include "../mtxStructs.h"
+#include "../performance.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    int computeCUDA(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *hllMatrixAligned, int num_threads);
+    int computeCUDA(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *hllMatrixAligned, int blockSize, int warpSize, PerformanceResult *performance);
 
 #ifdef __cplusplus
 }
