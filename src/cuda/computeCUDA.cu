@@ -124,7 +124,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("CudaSerial: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    printf("csr_cuda_Serial: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost spmv_csr_serial failed\033[0m\n");
@@ -182,7 +182,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("CudaSol1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    printf("csr_cuda1: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
@@ -242,7 +242,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
         return -1;
     }
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
-    printf("CudaSol3: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
+    printf("csr_cuda2: Flops: %f\n", computeFlops(h_csr->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol2 failed\033[0m\n");
@@ -292,23 +292,20 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial) {
     return 0;
 }
 
-int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result)
-{
+int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
     cudaError_t cuda_error;
     int int_err;
 
     float elapsedTime;
 
-    if (!h_hll || !serial_result)
-    {
+    if (!h_hll || !serial_result) {
        perror("Hll_cuda_product failed: Input not initialized");
         return -1;
     }
 
     //Create vector:
     MatVal *h_x = create_vector(h_hll->N);
-    if (h_x == nullptr)
-    {
+    if (h_x == nullptr) {
         perror("Hll_cuda_product failed: create_vector failed");
         return -1;
     }
@@ -368,8 +365,7 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result)
 
     // Upload hll to device:
     HLLMatrix *d_hll = uploadHLLToDevice(h_hll);
-    if (d_hll == nullptr)
-    {
+    if (d_hll == nullptr) {
         perror("Hll_cuda_product failed: uploadHLLToDevice failed");
         free_result_vector(d_result_vector);
         free_vector(h_x);
@@ -398,7 +394,7 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result)
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("CudaSerial: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    printf("hll_cuda_Serial: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mhll_product - downloadResultVectorToHost spmv_hll_serial failed\033[0m\n");
@@ -461,7 +457,7 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result)
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("CudaSol1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    printf("hll_cuda1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
@@ -520,7 +516,7 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result)
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("CudaSol2: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    printf("hll_cuda2: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mhll_product - downloadResultVectorToHost hll_cudaProduct_sol2 failed\033[0m\n");
@@ -662,7 +658,7 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("CudaSerial: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    printf("hllAligned_cuda_Serial: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mhllAligned_product - downloadResultVectorToHost spmv_hll_serial failed\033[0m\n");
@@ -722,7 +718,7 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("CudaSol1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    printf("hllAligned_cuda1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
@@ -784,7 +780,7 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("CudaSol2: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
+    printf("hllAligned_cuda2: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mhll_product - downloadResultVectorToHost hll_cudaProduct_sol2 failed\033[0m\n");
