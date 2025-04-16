@@ -41,13 +41,13 @@ void csv_logger_close();
     double start = 0, end = 0;                  \
     double cumulative = 0;                      \
 
-#define BEGIN_BENCHMARK(perf_ptr, func_name_str)  \
-    strcpy((perf_ptr)->curr_func, func_name_str); \
-    cumulative = 0;                               \
-    for (int i = 0; i < MAX_REPETITIONS; i++) {   \
+#define BEGIN_BENCHMARK(perf_ptr, start, func_name_str)  \
+    strcpy((perf_ptr)->curr_func, func_name_str);        \
+    cumulative = 0;                                      \
+    for (int i = 0; i < MAX_REPETITIONS; i++) {          \
         start = omp_get_wtime();
 
-#define END_BENCHMARK(perf_ptr)                                               \
+#define END_BENCHMARK(perf_ptr, end, cumulative)                              \
     end = omp_get_wtime();                                                    \
     cumulative += end - start;                                                \
     (perf_ptr)->avg_time_ms = cumulative / (i + 1);                           \
