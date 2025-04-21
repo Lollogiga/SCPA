@@ -12,10 +12,10 @@
 > - [x] Convertire le matrici in formato ```ELLPACK```
 > - [x] Convertire le matrici in formato ```HLL```
 
-> - [ ] Realizzare il prodotto _**matrice**_ x _**vettore**_ nei seguenti formati:
+> - [x] Realizzare il prodotto _**matrice**_ x _**vettore**_ nei seguenti formati:
 >   - [x] Prodotto in ```Seriale```
->   - [ ] Prodotto in ```OpenMP```
->   - [ ] Prodotto in ```CUDA```
+>   - [x] Prodotto in ```OpenMP```
+>   - [x] Prodotto in ```CUDA```
 
 > - [ ] Valutare le performance
 
