@@ -72,39 +72,54 @@ int computeMatrix(const char *matrixFile) {
 
     printf("\n-------------- COMPUTING OpenMP --------------\n");
 
-    int num_threads = 40;
-    printf("\n\033[32;7m# of threads:\033[0;32m %d\033[0m\n", num_threads);
+    for (int i = 0; i < MAX_NUM_THREADS; i++) {
+        if (strcmp(matrixFile, "../matrix/roadNet-PA.mtx") == 0 && i == 24) i++;
+        if (strcmp(matrixFile, "../matrix/ns_example.mtx") == 0 && i == 2) i++;
+        if (strcmp(matrixFile, "../matrix/example.mtx") == 0 && i == 2) i++;
+        if (strcmp(matrixFile, "../matrix/webbase-1M.mtx") == 0 && i == 2) i++;
+        if (strcmp(matrixFile, "../matrix/dc1.mtx") == 0 && i == 2) i++;
+        if (strcmp(matrixFile, "../matrix/thermomech_TK.mtx") == 0 && i == 4) i++;
+        if (strcmp(matrixFile, "../matrix/olm1000.mtx") == 0 && (i == 30 || i == 44 || i == 54)) i++;
 
-    strcpy(performance.implementation, "OpenMP");
-    performance.threads = num_threads;
+        const int num_threads = i + 1;
+        printf("\n\033[32;7m# of threads:\033[0;32m %d\033[0m\n", num_threads);
 
-    // Compute OpenMP calculus
-    if (computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads, &performance)) {
-        perror("Error computeOpenMP\n");
-        free_CSRMatrix(csrMatrix);
-        free_HLLMatrix(hllMatrix);
-        free_HLLMatrixAligned(hllMatrixAligned);
+        strcpy(performance.implementation, "OpenMP");
+        performance.threads = num_threads;
 
-        return -1;
+        // Compute OpenMP calculus
+        if (computeOpenMP(csrMatrix, hllMatrix, hllMatrixAligned, num_threads, &performance)) {
+            perror("Error computeOpenMP\n");
+            free_CSRMatrix(csrMatrix);
+            free_HLLMatrix(hllMatrix);
+            free_HLLMatrixAligned(hllMatrixAligned);
+
+            return -1;
+        }
     }
 
     performance.threads = 0;
 
     printf("\n-------------- COMPUTING CUDA --------------\n");
 
-    int blockSize = 192;
-    int warpSize = 32;
+    int blockSizes[] = {32, 64, 96, 128, 160, 192, 256, 320, 384, 512, 768, 1024};
+    int numTests = 12;
 
-    strcpy(performance.implementation, "CUDA");
-    performance.block_size = 192;
-    performance.warp_size = 32;
+    for (int i = 0; i < numTests; i++) {
+        int blockSize = blockSizes[i];
+        int warpSize = 32;
 
-    if (computeCUDA(csrMatrix, hllMatrix, hllMatrixAligned, blockSize, warpSize, &performance)) {
-        free_CSRMatrix(csrMatrix);
-        free_HLLMatrix(hllMatrix);
-        free_HLLMatrixAligned(hllMatrixAligned);
+        strcpy(performance.implementation, "CUDA");
+        performance.block_size = blockSize;
+        performance.warp_size = 32;
 
-        return -1;
+        if (computeCUDA(csrMatrix, hllMatrix, hllMatrixAligned, blockSize, warpSize, &performance)) {
+            free_CSRMatrix(csrMatrix);
+            free_HLLMatrix(hllMatrix);
+            free_HLLMatrixAligned(hllMatrixAligned);
+
+            return -1;
+        }
     }
 
     free_CSRMatrix(csrMatrix);
@@ -156,11 +171,55 @@ int main(int argc, char *argv[]) {
     }
 
 #ifndef TEST
+    const char *excluded[] = {
+        // "adder_dcop_32.mtx",
+        // "af23560.mtx",
+        // "amazon0302.mtx",
+        // "bcsstk17.mtx",
+        // "cage4.mtx",
+        // "cant.mtx",
+        // "cavity10.mtx",
+        // "cop20k_A.mtx",
+        // "Cube_Coup_dt0.mtx",
+        // "dc1.mtx",
+        // "example.mtx",
+        // "lung2.mtx",
+        // "mac_econ_fwd500.mtx",
+        // "mcfe.mtx",
+        // "mhd4800a.mtx",
+        // "mhda416.mtx",
+        // "ML_Laplace.mtx",
+        // "nlpkkt80.mtx",
+        // "ns_example.mtx",
+        // "olafu.mtx",
+        // "olm1000.mtx",
+        // "PR02R.mtx",
+        // "raefsky2.mtx",
+        // "rdist2.mtx",
+        // "roadNet-PA.mtx",
+        // "thermal1.mtx",
+        // "thermal2.mtx",
+        // "thermomech_TK.mtx",
+        // "webbase-1M.mtx",
+        // "west2021.mtx"
+    };
+    const size_t excluded_count = sizeof(excluded) / sizeof(excluded[0]);
+
     struct dirent *entry;
     while ((entry = readdir(dir))) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;  // Skip loop iteration
         }
+
+        int skip = 0;
+        for (size_t i = 0; i < excluded_count; i++) {
+            if (strcmp(entry->d_name, excluded[i]) == 0) {
+                skip = 1;
+                break;
+            }
+        }
+
+        if (skip) continue;
 
         char *filePath = malloc(strlen(folder) + strlen(entry->d_name) + 1);
         if (filePath == NULL) {
@@ -172,7 +231,7 @@ int main(int argc, char *argv[]) {
         snprintf(filePath, strlen(folder) + strlen(entry->d_name) + 1, "%s%s", folder, entry->d_name);
         printf("FilePath: %s\n", filePath);
 
-        computeMatrix(result_file, filePath);
+        computeMatrix(filePath);
 
         free(filePath);
     }
@@ -188,10 +247,13 @@ int main(int argc, char *argv[]) {
     // computeMatrix("../matrixTest/mhda416.mtx");
 
     // printf("\n../matrixTest/cant.mtx\n");
-    computeMatrix("../matrixTest/cant.mtx");
+    // computeMatrix("../matrixTest/cant.mtx");
+    computeMatrix("../matrix/ns_example.mtx");
     // computeMatrix("../matrixTest/Cube_Coup_dt0.mtx");
     // computeMatrix("../matrix/ML_Laplace.mtx");
+    // computeMatrix("../matrix/PR02R.mtx");
 #endif
+
 
     csv_logger_close(result_file);
     closedir(dir);

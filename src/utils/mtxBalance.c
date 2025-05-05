@@ -12,6 +12,9 @@ ThreadDataRange *matrixBalanceCSR(CSRMatrix *csr, int numThreads) {
     }
 
     int *row_weights = calloc(csr->M, sizeof(int));
+    if (!row_weights) {
+        printf("----- matrixBalanceCSR -----");
+    }
     for (int i = 0; i < csr->M; i++) {
         row_weights[i] = csr->IRP[i + 1] - csr->IRP[i];
     }
@@ -32,8 +35,8 @@ ThreadDataRange *matrixBalanceCSR(CSRMatrix *csr, int numThreads) {
     for (int i = 0; i < csr->M; i++) {
         current_weight += row_weights[i];
         if (current_weight >= weight_per_thread && thread_idx < numThreads) {
-            threadRanges[thread_idx].end = i;
-            threadRanges[++thread_idx].start = i;
+            threadRanges[thread_idx].end = i + 1;
+            threadRanges[++thread_idx].start = i + 1;
             current_weight = 0;
         }
     }

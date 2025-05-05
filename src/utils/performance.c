@@ -58,8 +58,8 @@ void csv_logger_write(const PerformanceResult* result) {
     } else {
         fprintf(
             // TODO capire la granularità che ci interessa avere sul file csv
-            // fp, "%s,%s,%s,%s,%d,%d,%.6f,%.2f,%d,%d,%d,%d\n",
-            fp, "%s,%s,%s,%s,%d,%d,%f,%f,%d,%d,%d,%d\n",
+            // fp, "%s,%s,%s,%s,%d,%d,%.6f,%.2f,%d,%d,%d,%d,%d\n",
+            fp, "%s,%s,%s,%s,%d,%d,%f,%f,%d,%d,%d,%d,%d\n",
             result->implementation,         // Tipo di implementazione ("OpenMP" o "CUDA")
             result->format,                 // Formato della matrice ("CSR", "HLL", etc.)
             result->matrix_name,            // Nome della matrice
@@ -71,7 +71,8 @@ void csv_logger_write(const PerformanceResult* result) {
             result->threads,                // Numero di thread per OpenMP, 0 per CUDA
             result->block_size,             // Numero di thread per blocco in CUDA
             result->warp_size,              // Warp size di CUDA
-            result->blocks_per_grid         // Numero di blocchi per griglia in CUDA
+            result->blocks_per_grid,        // Numero di blocchi per griglia in CUDA
+            result->has_error               // 1 se c'è stato un errore, 0 altrimenti
         );
     }
 }

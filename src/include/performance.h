@@ -60,6 +60,7 @@ extern "C" {
     (perf_ptr)->repetitions = iBenchOMP + 1;                                  \
     (perf_ptr)->gflops = computeFlops(perf_ptr->NZ, (perf_ptr)->avg_time_ms); \
     csv_logger_write(perf_ptr);                                               \
+    (perf_ptr)->has_error = 0;                                                \
 }
 
 // CUDA defines

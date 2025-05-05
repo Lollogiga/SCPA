@@ -63,7 +63,7 @@ double checkResultVector(const ResultVector *serial_result, const ResultVector *
     return (count > 0) ? totalRelativeDiff / count : 0.0;
 }
 
-void analyzeErrorVector(const ResultVector *serial_result, const ResultVector *parallel_result) {
+void analyzeErrorVector(const ResultVector *serial_result, const ResultVector *parallel_result, PerformanceResult *performance) {
     if (serial_result->len_vector != parallel_result->len_vector) {
         printf("Errore: vettori di lunghezza diversa\n");
         return;
@@ -101,11 +101,18 @@ void analyzeErrorVector(const ResultVector *serial_result, const ResultVector *p
         }
     }
 
-    printf("\n=== Analisi degli errori ===\n");
-    printf("Errore assoluto massimo   : %.12e\n", maxAbsDiff);
-    printf("Errore relativo massimo   : %.12e\n", maxRelativeDiff);
-    printf("Errore medio assoluto     : %.12e\n", totalAbsDiff / len);
-    printf("Errore medio relativo     : %.12e\n", totalRelativeDiff / len);
-    printf("Errore L2 (norma euclidea): %.12e\n", sqrt(squaredDiffSum));
-    printf("===========================\n\n");
+    performance->has_error = 1;
+    performance->max_abs_error = maxAbsDiff;
+    performance->max_rel_error = maxRelativeDiff;
+    performance->avg_abs_error = totalAbsDiff / len;
+    performance->avg_rel_error = totalRelativeDiff / len;
+    performance->error_L2 = sqrt(squaredDiffSum);
+
+    // printf("\n=== Analisi degli errori ===\n");
+    // printf("Errore assoluto massimo   : %.12e\n", maxAbsDiff);
+    // printf("Errore relativo massimo   : %.12e\n", maxRelativeDiff);
+    // printf("Errore medio assoluto     : %.12e\n", totalAbsDiff / len);
+    // printf("Errore medio relativo     : %.12e\n", totalRelativeDiff / len);
+    // printf("Errore L2 (norma euclidea): %.12e\n", sqrt(squaredDiffSum));
+    // printf("===========================\n\n");
 }

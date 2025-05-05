@@ -52,7 +52,7 @@ ResultVector *hll_openmpProduct_sol1(HLLMatrix *hll, MatVal *vector, int num_thr
 
     omp_set_num_threads(num_threads);
 
-#pragma omp parallel for shared(error_flag)
+#pragma omp parallel // for shared(error_flag)
     for (MatT i = 0; i < hll->numBlocks; i++) {
         if (error_flag) continue;
 

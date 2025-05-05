@@ -32,7 +32,8 @@ ResultVector *create_result_vector(MatT len_vector) {
 
     //Define dim of result vectors:
     result->len_vector = len_vector;
-    result->val = calloc(result->len_vector, sizeof(MatVal));
+    result->val = malloc(result->len_vector * sizeof(MatVal));
+    for (int i = 0; i < result->len_vector; i++) {result->val[i] = 0;}
     if (!result->val) {
         perror("csr_serialProduct: result val malloc failed");
         free(result);

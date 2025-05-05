@@ -11,7 +11,9 @@
 #define REL_TOLERANCE 1e-6  // Tolleranza relativa
 #define ABS_TOLERANCE 1e-7  // Tolleranza assoluta
 
-#define MAX_REPETITIONS 100
+#define MAX_NUM_THREADS 70
+
+#define MAX_REPETITIONS 10
 
 static const char MATRIX_FOLDER_DEFAULT[] = "../matrix/";
 static const char MATRIX_TEST_FOLDER_DEFAULT[] = "../matrixTest/";

@@ -26,9 +26,14 @@
 
 int csr_product(CSRMatrix *h_csr, ResultVector *serial, int blockSize, int warpSize, PerformanceResult *performance) {
     cudaError_t cuda_error;
-    int int_err;
+    double int_err;
     
     float elapsedTime;
+
+    if (!h_csr || !serial) {
+        perror("CSR_cuda_product failed: Input not initialized");
+        return -1;
+    }
     
     CSRMatrix *d_csr = uploadCSRToDevice(h_csr);
     if (d_csr == nullptr) {
@@ -106,7 +111,6 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial, int blockSize, int warpS
         free_result_vector(h_result_vector);
         return -1;
     }
-
 
     CUDA_EVENT_CREATE(start, stop)
     INIT_BENCHMARK_CUDA(cumulative)
@@ -264,26 +268,7 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial, int blockSize, int warpS
     if (int_err) {
         printf("\033[31mcsr_product - checkResultVector csr_cudaProduct_sol2 failed\033[0m\n");
 
-        // TODO capire se quest'errore è accettabile oppure no... lo da solo su una matrice: Cube_Coup_dt0
-        analyzeErrorVector(serial, h_result_vector);
-        /*
-         * Risultati ottenuti:
-         * === Analisi degli errori ===
-         * Errore assoluto massimo   : 1.982897747439e-04 => Basso — indica che il massimo scarto è nell'ordine dei 0.0002
-         * Errore relativo massimo   : 1.847778264837e+00 => Alto — significa che almeno un valore ha una deviazione molto forte rispetto alla sua grandezza
-         * Errore medio assoluto     : 8.093087121578e-06 => Molto basso — la media degli scarti assoluti è trascurabile
-         * Errore medio relativo     : 1.411729948878e-03 => Basso — in media i risultati sono vicini
-         * Errore L2 (norma euclidea): 2.166021948034e-02 => Normale — dipende dalla scala del problema, ma in generale è un errore contenuto
-         * ===========================
-         */
-
-        // freeCSRDevice(d_csr);
-        // free_vector(h_x);
-        // cudaFree(d_x);
-        // free_result_vector(h_result_vector);
-        // freeResultVectorFromDevice(d_result_vector);
-        // CUDA_EVENT_DESTROY(start, stop)
-        // return -1;
+        analyzeErrorVector(serial, h_result_vector, performance);
     }
     freeResultVectorFromDevice(d_result_vector);
     END_BENCHMARK_CUDA(performance, elapsedTime)
@@ -299,16 +284,32 @@ int csr_product(CSRMatrix *h_csr, ResultVector *serial, int blockSize, int warpS
     return 0;
 }
 
-int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
+int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial, int blockSize,  PerformanceResult *performance) {
     cudaError_t cuda_error;
-    int int_err;
+    double int_err;
 
     float elapsedTime;
 
-    if (!h_hll || !serial_result) {
-       perror("Hll_cuda_product failed: Input not initialized");
+    if (!h_hll || !serial) {
+        perror("HLL_cuda_product failed: Input not initialized");
         return -1;
     }
+
+    // Upload hll to device:
+    HLLMatrix *d_hll = uploadHLLToDevice(h_hll);
+    if (d_hll == nullptr) {
+        perror("Hll_cuda_product failed: uploadHLLToDevice failed");
+
+        return -1;
+    }
+
+    int threadsPerBlock = blockSize;
+    int blocksPerGrid = h_hll->numBlocks;
+
+    dim3 grid(blocksPerGrid);
+    dim3 block(threadsPerBlock);
+
+    performance->blocks_per_grid = blocksPerGrid;
 
     //Create vector:
     MatVal *h_x = create_vector(h_hll->N);
@@ -351,15 +352,11 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         return -1;
     }
 
-    //Create result_vector:
     ResultVector *h_result_vector = create_result_vector(h_hll->M);
-    if (h_result_vector == nullptr)
-    {
+    if (h_result_vector == nullptr) {
         perror("Hll_cuda_product failed: create_result_vector failed");
         return -1;
     }
-
-    // Upload result_vector on device
     ResultVector *d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
         printf("\033[31mhll_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
@@ -370,21 +367,10 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         return -1;
     }
 
-    // Upload hll to device:
-    HLLMatrix *d_hll = uploadHLLToDevice(h_hll);
-    if (d_hll == nullptr) {
-        perror("Hll_cuda_product failed: uploadHLLToDevice failed");
-        free_result_vector(d_result_vector);
-        free_vector(h_x);
-        cudaFree(d_x);
-        freeHLLDevice(d_hll);
-
-        return -1;
-    }
-
-    // Serial solution:
     CUDA_EVENT_CREATE(start, stop)
+    INIT_BENCHMARK_CUDA(cumulative)
 
+    // SOL SERIAL
     CUDA_EVENT_START(start)
     spmv_hll_serial<<<1, 1>>>(d_hll, d_x, d_result_vector);
     cuda_error = cudaGetLastError();
@@ -414,7 +400,7 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    int_err = checkResultVector(serial_result, h_result_vector);
+    int_err = checkResultVector(serial, h_result_vector);
     if (int_err) {
         printf("\033[31mhll_product - checkResultVector spmv_hll_serial failed\033[0m\n");
 
@@ -426,11 +412,10 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-
     freeResultVectorFromDevice(d_result_vector);
 
-
-    // Solution 1:
+    // SOL 1
+    BEGIN_BENCHMARK_CUDA(performance, "hll_cudaProduct_sol1")
     for (int i = 0; i < h_hll->M; i++) h_result_vector->val[i] = 0;
     d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
@@ -444,9 +429,6 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-
-    dim3 grid(h_hll->numBlocks);
-    dim3 block(h_hll->hackSize);
 
     CUDA_EVENT_START(start)
     spmv_hll_parallel<<<grid, block>>>(d_hll, d_x, d_result_vector);
@@ -464,7 +446,6 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("hll_cuda1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
@@ -477,7 +458,7 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    int_err = checkResultVector(serial_result, h_result_vector);
+    int_err = checkResultVector(serial, h_result_vector);
     if (int_err) {
         printf("\033[31hll_product - checkResultVector hll_cudaProduct_sol1 failed\033[0m\n");
 
@@ -490,9 +471,12 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         return -1;
     }
     freeResultVectorFromDevice(d_result_vector);
+    END_BENCHMARK_CUDA(performance, elapsedTime)
+    printf("hll_cuda1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
 
 
     // Solution 2:
+    BEGIN_BENCHMARK_CUDA(performance, "hll_cudaProduct_sol2")
     for (int i = 0; i < h_hll->M; i++) h_result_vector->val[i] = 0;
     d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
@@ -523,7 +507,6 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("hll_cuda2: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mhll_product - downloadResultVectorToHost hll_cudaProduct_sol2 failed\033[0m\n");
@@ -536,7 +519,7 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    int_err = checkResultVector(serial_result, h_result_vector);
+    int_err = checkResultVector(serial, h_result_vector);
     if (int_err) {
         printf("\033[31hll_product - checkResultVector hll_cudaProduct_sol2 failed\033[0m\n");
 
@@ -548,6 +531,8 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
+    END_BENCHMARK_CUDA(performance, elapsedTime)
+    printf("hll_cuda2: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
 
     freeHLLDevice(d_hll);
 
@@ -560,22 +545,34 @@ int hll_CUDA_product(HLLMatrix *h_hll, ResultVector *serial_result) {
 
 }
 
-int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result){
+int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result, int blockSize, PerformanceResult *performance){
     cudaError_t cuda_error;
-    int int_err;
+    double int_err;
 
     float elapsedTime;
 
-    if (!h_hll || !serial_result)
-    {
+    if (!h_hll || !serial_result) {
        perror("HllAligned_cuda_product failed: Input not initialized");
         return -1;
     }
 
+    // Upload hll to device:
+    HLLMatrixAligned *d_hll = uploadHLLAlignedToDevice(h_hll);
+    if (d_hll == nullptr) {
+        perror("HllAligned_cuda_product failed: uploadHLLToDevice failed");
+
+        return -1;
+    }
+
+    int threadsPerBlock = blockSize;
+    int blocksPerGrid = h_hll->numBlocks;
+
+    dim3 grid(blocksPerGrid);
+    dim3 block(threadsPerBlock);
+
     //Create vector:
     MatVal *h_x = create_vector(h_hll->N);
-    if (h_x == nullptr)
-    {
+    if (h_x == nullptr) {
         perror("HllAligned_cuda_product failed: create_vector failed");
         return -1;
     }
@@ -614,15 +611,11 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         return -1;
     }
 
-    //Create result_vector:
     ResultVector *h_result_vector = create_result_vector(h_hll->M);
-    if (h_result_vector == nullptr)
-    {
+    if (h_result_vector == nullptr) {
         perror("HllAligned_cuda_product failed: create_result_vector failed");
         return -1;
     }
-
-    // Upload result_vector on device
     ResultVector *d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
         printf("\033[31mhllAligned_product - uploadResultVectorToDevice h_result_vector failed\033[0m\n");
@@ -633,22 +626,10 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         return -1;
     }
 
-    // Upload hll to device:
-    HLLMatrixAligned *d_hll = uploadHLLAlignedToDevice(h_hll);
-    if (d_hll == nullptr)
-    {
-        perror("HllAligned_cuda_product failed: uploadHLLToDevice failed");
-        free_result_vector(d_result_vector);
-        free_vector(h_x);
-        cudaFree(d_x);
-        freeHLLAlignedToDevice(d_hll);
-
-        return -1;
-    }
+    CUDA_EVENT_CREATE(start, stop)
+    INIT_BENCHMARK_CUDA(cumulative)
 
     // Serial solution:
-    CUDA_EVENT_CREATE(start, stop)
-
     CUDA_EVENT_START(start)
     spmv_hllAligned_serial<<<1, 1>>>(d_hll, d_x, d_result_vector);
     cuda_error = cudaGetLastError();
@@ -693,7 +674,8 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
 
     freeResultVectorFromDevice(d_result_vector);
 
-    // Solution 1:
+    // SOL 1
+    BEGIN_BENCHMARK_CUDA(performance, "hllAlign_cudaProduct_sol1")
     for (int i = 0; i < h_hll->M; i++) h_result_vector->val[i] = 0;
     d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
@@ -708,9 +690,8 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         return -1;
     }
 
-
     CUDA_EVENT_START(start)
-    spmv_hllAligned_parallel<<<h_hll->numBlocks, h_hll->hackSize>>>(d_hll, d_x, d_result_vector);
+    spmv_hllAligned_parallel<<<grid, block>>>(d_hll, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     cuda_error = cudaGetLastError();
     CUDA_EVENT_ELAPSED(start, stop, elapsedTime)
@@ -725,7 +706,6 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("hllAligned_cuda1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mcsr_product - downloadResultVectorToHost csr_cudaProduct_sol1 failed\033[0m\n");
@@ -751,8 +731,11 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         return -1;
     }
     freeResultVectorFromDevice(d_result_vector);
+    END_BENCHMARK_CUDA(performance, elapsedTime)
+    printf("hllAligned_cuda1: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
 
-    // Solution 2:
+    // SOL 2
+    BEGIN_BENCHMARK_CUDA(performance, "hllAlign_cudaProduct_sol2")
     for (int i = 0; i < h_hll->M; i++) h_result_vector->val[i] = 0;
     d_result_vector = uploadResultVectorToDevice(h_result_vector);
     if (d_result_vector == nullptr) {
@@ -770,8 +753,6 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
     CUDA_EVENT_START(start)
     int numSMs;
     cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
-    dim3 grid(h_hll->numBlocks);  // Un blocco CUDA per ogni blocco HLL
-    dim3 block(256);            // 256 thread per blocco
     spmv_hllAligned_coalesced<<<grid, block>>>(d_hll, d_x, d_result_vector);
     CUDA_EVENT_STOP(stop)
     cuda_error = cudaGetLastError();
@@ -787,7 +768,6 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
-    printf("hllAligned_cuda2: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
     int_err = downloadResultVectorToHost(h_result_vector, d_result_vector);
     if (int_err != 0) {
         printf("\033[31mhll_product - downloadResultVectorToHost hll_cudaProduct_sol2 failed\033[0m\n");
@@ -812,6 +792,8 @@ int hllAligned_CUDA_product(HLLMatrixAligned *h_hll, ResultVector *serial_result
         CUDA_EVENT_DESTROY(start, stop)
         return -1;
     }
+    END_BENCHMARK_CUDA(performance, elapsedTime)
+    printf("hllAligned_cuda2: Flops: %f\n", computeFlops(h_hll->NZ, elapsedTime));
 
     freeHLLAlignedToDevice(d_hll);
 
@@ -836,17 +818,19 @@ extern "C" int computeCUDA(CSRMatrix *csr, HLLMatrix *hll, HLLMatrixAligned *hll
     printf("\033[1;31m---- csr ----:\033[0m\n");
     csr_product(csr, serial, blockSize, warpSize, performance);
 
+    performance->warp_size = 0;
+
     // HLL format
     strcpy(performance->format, "HLL");
 
     printf("\033[1;32m---- hll ----:\033[0m\n");
-    hll_CUDA_product(hll, serial);
+    hll_CUDA_product(hll, serial, blockSize, performance);
 
     // HLLAlign format
     strcpy(performance->format, "HLLAlign");
 
     printf("\033[1;34m---- hll_aligned ----:\033[0m\n");
-    hllAligned_CUDA_product(hllAligned, serial);
+    hllAligned_CUDA_product(hllAligned, serial, blockSize, performance);
 
     return 0;
 }

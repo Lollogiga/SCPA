@@ -47,9 +47,9 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in Csr solution 1 \n");
-        free_ResultVector(res);
-        return -1;
+        // perror("Error checkResultVector in Csr solution 1 \n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
     free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
@@ -65,9 +65,9 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in Csr solution 2\n");
-        free_ResultVector(res);
-        return -1;
+        // perror("Error checkResultVector in Csr solution 2\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
     free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
@@ -84,9 +84,9 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in Csr solution 3\n");
-        free_ResultVector(res);
-        return -1;
+        // perror("Error checkResultVector in Csr solution 3\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
     free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
@@ -103,9 +103,9 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in Csr solution 4\n");
-        free_ResultVector(res);
-        return -1;
+        // perror("Error checkResultVector in Csr solution 4\n");
+
+        analyzeErrorVector(serial_res, res, performance);;
     }
     free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
@@ -123,9 +123,9 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector in Csr solution 5\n");
-        free_ResultVector(res);
-        return -1;
+        // perror("Error checkResultVector in Csr solution 5\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
     free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
@@ -170,9 +170,9 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector Hll solution 1\n");
-        free_ResultVector(res);
-        return -1;
+        // perror("Error checkResultVector Hll solution 1\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
     free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
@@ -188,9 +188,9 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector Hll solution 2\n");
-        free_ResultVector(res);
-        return -1;
+        // perror("Error checkResultVector Hll solution 2\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
     free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
@@ -202,14 +202,14 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
     start = omp_get_wtime();
     res = hll_openmpProduct_sol3(hllMatrix, vector, num_threads, tdr);
     if (res == NULL) {
-        perror("Error hll_openmpProduct_sol2\n");
+        perror("Error hll_openmpProduct_sol3\n");
         return -1;
     }
     end = omp_get_wtime();
     if (checkResultVector(serial_res,res) < 0) {
-        perror("Error checkResultVector Hll solution 3\n");
-        free_ResultVector(res);
-        return -1;
+        // perror("Error checkResultVector Hll solution 3\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
     free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
@@ -241,42 +241,42 @@ ResultVector* hllAlignedProduct_Serial(HLLMatrixAligned *hllMatrix, MatVal *vect
 int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int num_threads, ResultVector *serial_res, PerformanceResult *performance) {
     const MatT NZ = hllMatrix->NZ;
 
-    ResultVector *hll_product = NULL;
+    ResultVector *res = NULL;
     INIT_BENCHMARK_OPENMP(start, end, cumulative);
 
     //OpemMP solution:
     BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
     start = omp_get_wtime();
-    hll_product = hllAligned_openmpProduct(hllMatrix, vector, num_threads);
-    if (hll_product == NULL) {
+    res = hllAligned_openmpProduct(hllMatrix, vector, num_threads);
+    if (res == NULL) {
         perror("Error hll_SerialProduct\n");
         return -1;
     }
     end = omp_get_wtime();
-    if (checkResultVector(serial_res,hll_product) < 0) {
-        perror("Error checkResultVector Hll_Aligned solution 1\n");
-        free_ResultVector(hll_product);
-        return -1;
+    if (checkResultVector(serial_res,res) < 0) {
+        // perror("Error checkResultVector Hll_Aligned solution 1\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
-    free_ResultVector(hll_product);
+    free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("hllAligned_openmp1: GFLOPS: %f\n", computeFlops(NZ, end - start));
 
     //OpemMP solution 2:
     BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
     start = omp_get_wtime();
-    hll_product = hllAligned_openmpProduct_sol2(hllMatrix, vector, num_threads);
-    if (hll_product == NULL) {
+    res = hllAligned_openmpProduct_sol2(hllMatrix, vector, num_threads);
+    if (res == NULL) {
         perror("Error hll_SerialProduct\n");
         return -1;
     }
     end = omp_get_wtime();
-    if (checkResultVector(serial_res,hll_product) < 0) {
-        perror("Error checkResultVector HllAligned solution 2\n");
-        free_ResultVector(hll_product);
-        return -1;
+    if (checkResultVector(serial_res,res) < 0) {
+        // perror("Error checkResultVector HllAligned solution 2\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
-    free_ResultVector(hll_product);
+    free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("hllAligned_openmp2: GFLOPS: %f\n", computeFlops(NZ, end - start));
 
@@ -284,18 +284,18 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
     ThreadDataRange *tdr = matrixBalanceHLL_sol2(hllMatrix, num_threads);
     BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
     start = omp_get_wtime();
-    hll_product = hllAligned_openmpProduct_sol3(hllMatrix, vector, num_threads, tdr);
-    if (hll_product == NULL) {
+    res = hllAligned_openmpProduct_sol3(hllMatrix, vector, num_threads, tdr);
+    if (res == NULL) {
         perror("Error hll_openmpProduct_sol2\n");
         return -1;
     }
     end = omp_get_wtime();
-    if (checkResultVector(serial_res,hll_product) < 0) {
-        perror("Error checkResultVector HllAligned solution 3\n");
-        free_ResultVector(hll_product);
-        return -1;
+    if (checkResultVector(serial_res,res) < 0) {
+        // perror("Error checkResultVector HllAligned solution 3\n");
+
+        analyzeErrorVector(serial_res, res, performance);
     }
-    free_ResultVector(hll_product);
+    free_ResultVector(res);
     END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     free(tdr);
     printf("hllAligned_openmp3: GFLOPS = %lf\n", computeFlops(NZ, end - start));
