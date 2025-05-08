@@ -13,13 +13,14 @@
 #include "../include/openmp/Serial.h"
 #include "../include/performance.h"
 
-ResultVector* csrProduct_Serial(CSRMatrix *csrMatrix, const MatVal *vector) {
+ResultVector* csrProduct_Serial(CSRMatrix *csrMatrix, const MatVal *vector, PerformanceResult *performance) {
     const MatT NZ = csrMatrix->NZ;
 
     ResultVector *res = NULL;
-    double start = 0, end = 0;
+    INIT_BENCHMARK_OPENMP(start, end, cumulative);
 
     // Serial solution
+    BEGIN_BENCHMARK_OPENMP(performance, "csr_serialProduct")
     start = omp_get_wtime();
     res = csr_serialProduct(csrMatrix, vector);
     if (res == NULL) {
@@ -27,6 +28,7 @@ ResultVector* csrProduct_Serial(CSRMatrix *csrMatrix, const MatVal *vector) {
         return NULL;
     }
     end = omp_get_wtime();
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("csr_serial: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
     return res;
@@ -40,6 +42,7 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
 
     // Csr solution 1
     BEGIN_BENCHMARK_OPENMP(performance, "csr_openmpProduct_sol1")
+    start = omp_get_wtime();
     res = csr_openmpProduct_sol1(csrMatrix, vector, num_threads);
     if (res == NULL) {
         perror("Error csr_openmpProduct_sol1\n");
@@ -135,23 +138,25 @@ int csrProduct_OpenMP(CSRMatrix *csrMatrix, MatVal *vector, const int num_thread
     return 0;
 }
 
-ResultVector* hllProduct_Serial(HLLMatrix *hllMatrix, MatVal *vector) {
+ResultVector* hllProduct_Serial(HLLMatrix *hllMatrix, MatVal *vector, PerformanceResult *performance) {
     const MatT NZ = hllMatrix->NZ;
 
-    ResultVector *hll_product = NULL;
-    double start = 0, end = 0;
+    ResultVector *res = NULL;
+    INIT_BENCHMARK_OPENMP(start, end, cumulative);
 
     // Serial solution
+    BEGIN_BENCHMARK_OPENMP(performance, "hll_serialProduct")
     start = omp_get_wtime();
-    hll_product = hll_serialProduct(hllMatrix, vector);
-    if (hll_product == NULL) {
+    res = hll_serialProduct(hllMatrix, vector);
+    if (res == NULL) {
         perror("Error hll_SerialProduct\n");
         return NULL;
     }
     end = omp_get_wtime();
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("hll_serial: GFLOPS = %lf\n", computeFlops(NZ, end - start));
 
-    return hll_product;
+    return res;
 }
 
 int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, ResultVector *serial_res, PerformanceResult *performance) {
@@ -219,23 +224,25 @@ int hllProduct_OpenMP(HLLMatrix *hllMatrix, MatVal *vector, int num_threads, Res
     return 0;
 }
 
-ResultVector* hllAlignedProduct_Serial(HLLMatrixAligned *hllMatrix, MatVal *vector) {
+ResultVector* hllAlignedProduct_Serial(HLLMatrixAligned *hllMatrix, MatVal *vector, PerformanceResult *performance) {
     const MatT NZ = hllMatrix->NZ;
 
-    ResultVector *hll_product = NULL;
-    double start = 0, end = 0;
+    ResultVector *res = NULL;
+    INIT_BENCHMARK_OPENMP(start, end, cumulative);
 
     // Serial solution
+    BEGIN_BENCHMARK_OPENMP(performance, "hllAligned_serialProduct")
     start = omp_get_wtime();
-    hll_product = hllAligned_serialProduct(hllMatrix, vector);
-    if (hll_product == NULL) {
+    res = hllAligned_serialProduct(hllMatrix, vector);
+    if (res == NULL) {
         perror("Error hll_SerialProduct\n");
         return NULL;
     }
     end = omp_get_wtime();
+    END_BENCHMARK_OPENMP(performance, start, end, cumulative)
     printf("hllAligned_serial: GFLOPS: %lf\n", computeFlops(NZ, end - start));
 
-    return hll_product;
+    return res;
 }
 
 int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int num_threads, ResultVector *serial_res, PerformanceResult *performance) {
@@ -316,7 +323,7 @@ int computeOpenMP(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *
     // CSR format
     strcpy(performance->format, "CSR");
 
-    ResultVector *csr_product = csrProduct_Serial(csrMatrix, vector);
+    ResultVector *csr_product = csrProduct_Serial(csrMatrix, vector, performance);
     res = csrProduct_OpenMP(csrMatrix, vector, num_threads, csr_product, performance);
     free_ResultVector(csr_product);
     if (res) return -1;
@@ -330,7 +337,7 @@ int computeOpenMP(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *
     // HLL format
     strcpy(performance->format, "HLL");
 
-    ResultVector *hll_product = hllProduct_Serial(hllMatrix, vector);
+    ResultVector *hll_product = hllProduct_Serial(hllMatrix, vector, performance);
     res = hllProduct_OpenMP(hllMatrix, vector, num_threads, hll_product, performance);
     free_ResultVector(hll_product);
     if (res) return -1;
@@ -338,7 +345,7 @@ int computeOpenMP(CSRMatrix *csrMatrix, HLLMatrix *hllMatrix, HLLMatrixAligned *
     // HLLAlign format
     strcpy(performance->format, "HLLAlign");
 
-    ResultVector *hllAligned_product = hllAlignedProduct_Serial(hllMatrixAligned, vector);
+    ResultVector *hllAligned_product = hllAlignedProduct_Serial(hllMatrixAligned, vector, performance);
     res = hllAlignedProduct_OpenMP(hllMatrixAligned, vector, num_threads, hllAligned_product, performance);
     free_ResultVector(hllAligned_product);
     if (res) return -1;

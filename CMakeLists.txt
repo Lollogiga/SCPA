@@ -7,7 +7,7 @@ set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
 set(CMAKE_CUDA_FLAGS "-O3 -arch=sm_75 -lineinfo -Xcompiler=-Wall")
 
-#add_definitions(-DTEST)
+add_definitions(-DTEST)
 
 # Opzione per abilitare/disabilitare CUDA
 option(ENABLE_CUDA "Enable CUDA support" ON)
