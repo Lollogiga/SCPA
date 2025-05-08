@@ -245,7 +245,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
     INIT_BENCHMARK_OPENMP(start, end, cumulative);
 
     //OpemMP solution:
-    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
+    BEGIN_BENCHMARK_OPENMP(performance, "hllAligned_openmpProduct")
     start = omp_get_wtime();
     res = hllAligned_openmpProduct(hllMatrix, vector, num_threads);
     if (res == NULL) {
@@ -263,7 +263,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
     printf("hllAligned_openmp1: GFLOPS: %f\n", computeFlops(NZ, end - start));
 
     //OpemMP solution 2:
-    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
+    BEGIN_BENCHMARK_OPENMP(performance, "hllAligned_openmpProduct_sol2")
     start = omp_get_wtime();
     res = hllAligned_openmpProduct_sol2(hllMatrix, vector, num_threads);
     if (res == NULL) {
@@ -282,7 +282,7 @@ int hllAlignedProduct_OpenMP(HLLMatrixAligned *hllMatrix, MatVal *vector, int nu
 
     // OpenMP solution 3: added some preprocessing
     ThreadDataRange *tdr = matrixBalanceHLL_sol2(hllMatrix, num_threads);
-    BEGIN_BENCHMARK_OPENMP(performance, "hll_openmpProduct_sol3")
+    BEGIN_BENCHMARK_OPENMP(performance, "hllAligned_openmpProduct_sol3")
     start = omp_get_wtime();
     res = hllAligned_openmpProduct_sol3(hllMatrix, vector, num_threads, tdr);
     if (res == NULL) {
