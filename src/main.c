@@ -74,12 +74,11 @@ int computeMatrix(const char *matrixFile) {
 
     for (int i = 0; i < MAX_NUM_THREADS; i++) {
         if (strcmp(matrixFile, "../matrix/roadNet-PA.mtx") == 0 && i == 24) i++;
-        if (strcmp(matrixFile, "../matrix/ns_example.mtx") == 0 && i == 2) i++;
-        if (strcmp(matrixFile, "../matrix/example.mtx") == 0 && i == 2) i++;
         if (strcmp(matrixFile, "../matrix/webbase-1M.mtx") == 0 && i == 2) i++;
         if (strcmp(matrixFile, "../matrix/dc1.mtx") == 0 && i == 2) i++;
         if (strcmp(matrixFile, "../matrix/thermomech_TK.mtx") == 0 && i == 4) i++;
         if (strcmp(matrixFile, "../matrix/olm1000.mtx") == 0 && (i == 30 || i == 44 || i == 54)) i++;
+        if (strcmp(matrixFile, "../matrix/FEM_3D_thermal1.mtx") == 0 && i == 4) i++;
 
         const int num_threads = i + 1;
         printf("\n\033[32;7m# of threads:\033[0;32m %d\033[0m\n", num_threads);
@@ -164,44 +163,40 @@ int main(int argc, char *argv[]) {
 
     printf("Folder path: %s\n", folder);
 
-    FILE *result_file = csv_logger_init(NULL);
-    if (!result_file) {
-        printf("Error opening file result_file\n");
-        return -1;
-    }
-
 #ifndef TEST
     const char *excluded[] = {
-        // "adder_dcop_32.mtx",
-        // "af23560.mtx",
-        // "amazon0302.mtx",
-        // "bcsstk17.mtx",
-        // "cage4.mtx",
-        // "cant.mtx",
-        // "cavity10.mtx",
-        // "cop20k_A.mtx",
-        // "Cube_Coup_dt0.mtx",
-        // "dc1.mtx",
-        // "example.mtx",
-        // "lung2.mtx",
-        // "mac_econ_fwd500.mtx",
-        // "mcfe.mtx",
-        // "mhd4800a.mtx",
+        "adder_dcop_32.mtx",
+        "af23560.mtx",
+        // "af_1_k101.mtx",
+        "amazon0302.mtx",
+        "bcsstk17.mtx",
+        "cage4.mtx",
+        "cant.mtx",
+        "cavity10.mtx",
+        "cop20k_A.mtx",
+        "Cube_Coup_dt0.mtx",
+        "dc1.mtx",
+        "example.mtx",
+        // "FEM_3D_thermal1.mtx",
+        "lung2.mtx",
+        "mac_econ_fwd500.mtx",
+        "mcfe.mtx",
+        "mhd4800a.mtx",
         // "mhda416.mtx",
-        // "ML_Laplace.mtx",
-        // "nlpkkt80.mtx",
-        // "ns_example.mtx",
-        // "olafu.mtx",
-        // "olm1000.mtx",
-        // "PR02R.mtx",
-        // "raefsky2.mtx",
-        // "rdist2.mtx",
-        // "roadNet-PA.mtx",
-        // "thermal1.mtx",
-        // "thermal2.mtx",
-        // "thermomech_TK.mtx",
-        // "webbase-1M.mtx",
-        // "west2021.mtx"
+        "ML_Laplace.mtx",
+        "nlpkkt80.mtx",
+        "ns_example.mtx",
+        "olafu.mtx",
+        "olm1000.mtx",
+        "PR02R.mtx",
+        "raefsky2.mtx",
+        "rdist2.mtx",
+        "roadNet-PA.mtx",
+        "thermal1.mtx",
+        "thermal2.mtx",
+        "thermomech_TK.mtx",
+        "webbase-1M.mtx",
+        "west2021.mtx"
     };
     const size_t excluded_count = sizeof(excluded) / sizeof(excluded[0]);
 
@@ -231,7 +226,30 @@ int main(int argc, char *argv[]) {
         snprintf(filePath, strlen(folder) + strlen(entry->d_name) + 1, "%s%s", folder, entry->d_name);
         printf("FilePath: %s\n", filePath);
 
+        char filename[512];
+
+        // Copia il nome del file senza modificarlo direttamente
+        strncpy(filename, entry->d_name, sizeof(filename));
+        filename[sizeof(filename) - 1] = '\0'; // Assicura il null-terminator
+
+        // Trova l'estensione .mtx e tronca la stringa lì
+        char *dot = strrchr(filename, '.');
+        if (dot && strcmp(dot, ".mtx") == 0) {
+            *dot = '\0';  // Rimuove l'estensione
+        }
+
+        char path[1024];
+        snprintf(path, sizeof(path), "./data/%s.csv", filename);
+
+        FILE *result_file = csv_logger_init(path);
+        if (!result_file) {
+            printf("Error opening file %s\n", path);
+            return -1;
+        }
+
         computeMatrix(filePath);
+
+        csv_logger_close(result_file);
 
         free(filePath);
     }
@@ -255,7 +273,6 @@ int main(int argc, char *argv[]) {
 #endif
 
 
-    csv_logger_close(result_file);
     closedir(dir);
     free(folder);
 

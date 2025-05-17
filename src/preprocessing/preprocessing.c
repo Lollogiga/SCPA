@@ -78,6 +78,7 @@ RawMatrix *read_matrix(FILE *f) {
         char line[MATRIX_FILE_MAX_ROW_LENGTH];  // assuming each line is small enough for this buffer
 
         if (!fgets(line, sizeof(line), f)) {
+            printf("[%d]\n", i);
             perror("Error reading matrix data\n");
 
             free(data->I);
